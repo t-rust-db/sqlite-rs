@@ -1,0 +1,224 @@
+// Copyright 2026 Schuberg Philis
+// SPDX-License-Identifier: Apache-2.0
+//! `.mode`/`.headers` REPL state (#495): a small `OutputMode` enum plus
+//! one dispatch function (`print_rows`) the REPL's own result-set
+//! printer routes every `SELECT` through, replacing the single
+//! hardcoded `write_list_row` call `run_repl` used before this ticket.
+//!
+//! This only affects the REPL's interactive printing — `query`/`exec`
+//! (one-shot CLI entry points, their own `-csv` flag already) are
+//! untouched, per the issue's explicit scope-down.
+
+use std::fmt::Write as _;
+use std::io::{self, Write};
+
+use sqlite_rs::format::{csv_quote, write_csv_value, write_query_value};
+use sqlite_rs::record::Value;
+
+use crate::common::CSV_ROW_TERMINATOR;
+
+/// The REPL's `.mode` setting. `List` is the pre-existing default
+/// (pipe-delimited, `write_list_row`); the other three are new.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OutputMode {
+    #[default]
+    List,
+    Csv,
+    Column,
+    Line,
+}
+
+impl OutputMode {
+    /// Parses a `.mode` argument (`list`/`csv`/`column`/`line`,
+    /// case-insensitive) — `None` for anything else, left to the
+    /// caller to report as an unknown mode.
+    pub fn parse(arg: &str) -> Option<Self> {
+        match arg.to_ascii_lowercase().as_str() {
+            "list" => Some(Self::List),
+            "csv" => Some(Self::Csv),
+            "column" => Some(Self::Column),
+            "line" => Some(Self::Line),
+            _ => None,
+        }
+    }
+}
+
+/// Renders `v` for `column`/`line` mode display: reuses
+/// `write_query_value`'s `-list`-mode rendering (empty string for
+/// `NULL`, NUL-truncated text/blobs) converted lossily to `String` —
+/// both modes are terminal-display renderers, not `-list`'s
+/// binary-safe byte stream, so lossy UTF-8 is an acceptable
+/// approximation here. `scratch` is a caller-owned buffer (#591), reused
+/// across cells instead of `format_query_value`'s fresh `Vec<u8>` per
+/// call.
+fn cell_string(scratch: &mut Vec<u8>, v: &Value) -> String {
+    scratch.clear();
+    write_query_value(scratch, v);
+    String::from_utf8_lossy(scratch).into_owned()
+}
+
+/// Prints one REPL result set (`columns` — see
+/// `crate::repl::derive_headers` — and `rows`) in `mode`, with a
+/// leading header row when `headers` is set. The single entry point
+/// `repl.rs`'s `run_one_statement` routes every `SELECT`'s output
+/// through, so `.mode`/`.headers` state lives in exactly one place.
+pub fn print_rows(
+    out: &mut impl Write,
+    mode: OutputMode,
+    headers: bool,
+    columns: &[String],
+    rows: &[Vec<Value>],
+) -> io::Result<()> {
+    match mode {
+        OutputMode::List => print_list(out, headers, columns, rows),
+        OutputMode::Csv => print_csv(out, headers, columns, rows),
+        OutputMode::Column => print_column(out, headers, columns, rows),
+        OutputMode::Line => print_line(out, columns, rows),
+    }
+}
+
+fn print_list(
+    out: &mut impl Write,
+    headers: bool,
+    columns: &[String],
+    rows: &[Vec<Value>],
+) -> io::Result<()> {
+    // #591: one buffer reused across every row/header line instead of a
+    // fresh `Vec<Vec<u8>>` (plus each cell's own `Vec<u8>`) per row.
+    let mut buf: Vec<u8> = Vec::new();
+    if headers {
+        buf.clear();
+        for (i, c) in columns.iter().enumerate() {
+            if i > 0 {
+                buf.push(b'|');
+            }
+            buf.extend_from_slice(c.as_bytes());
+        }
+        buf.push(b'\n');
+        out.write_all(&buf)?;
+    }
+    for row in rows {
+        buf.clear();
+        for (i, v) in row.iter().enumerate() {
+            if i > 0 {
+                buf.push(b'|');
+            }
+            write_query_value(&mut buf, v);
+        }
+        buf.push(b'\n');
+        out.write_all(&buf)?;
+    }
+    Ok(())
+}
+
+fn print_csv(
+    out: &mut impl Write,
+    headers: bool,
+    columns: &[String],
+    rows: &[Vec<Value>],
+) -> io::Result<()> {
+    // #591: one buffer reused across every row/header line instead of a
+    // fresh `Vec<String>` (plus a `join`) per row.
+    let mut line = String::new();
+    if headers {
+        line.clear();
+        for (i, c) in columns.iter().enumerate() {
+            if i > 0 {
+                line.push(',');
+            }
+            line.push_str(&csv_quote(c));
+        }
+        line.push_str(CSV_ROW_TERMINATOR);
+        out.write_all(line.as_bytes())?;
+    }
+    for row in rows {
+        line.clear();
+        for (i, v) in row.iter().enumerate() {
+            if i > 0 {
+                line.push(',');
+            }
+            write_csv_value(&mut line, v);
+        }
+        line.push_str(CSV_ROW_TERMINATOR);
+        out.write_all(line.as_bytes())?;
+    }
+    Ok(())
+}
+
+/// Fixed-width column rendering: each column's width is the longest
+/// rendered value in it (header included, when shown), padded with a
+/// 2-space gap. This is a reasonable approximation of `sqlite3`'s own
+/// `.mode column` (which auto-sizes from sampled row data with its own
+/// heuristics) rather than a byte-exact match — no attempt is made to
+/// reproduce its default truncation-at-a-fixed-width behavior.
+fn print_column(
+    out: &mut impl Write,
+    headers: bool,
+    columns: &[String],
+    rows: &[Vec<Value>],
+) -> io::Result<()> {
+    let num_cols = columns.len();
+    let mut widths = vec![0usize; num_cols];
+    if headers {
+        for (w, c) in widths.iter_mut().zip(columns.iter()) {
+            *w = (*w).max(c.len());
+        }
+    }
+    let mut scratch: Vec<u8> = Vec::new();
+    let rendered_rows: Vec<Vec<String>> = rows
+        .iter()
+        .map(|row| row.iter().map(|v| cell_string(&mut scratch, v)).collect())
+        .collect();
+    for row in &rendered_rows {
+        for (i, cell) in row.iter().enumerate() {
+            if let Some(w) = widths.get_mut(i) {
+                *w = (*w).max(cell.len());
+            }
+        }
+    }
+
+    let write_row = |out: &mut dyn Write, cells: &[String]| -> io::Result<()> {
+        let mut line = String::new();
+        for (i, cell) in cells.iter().enumerate() {
+            let width = widths.get(i).copied().unwrap_or(0);
+            if i.saturating_add(1) == num_cols {
+                line.push_str(cell);
+            } else {
+                write!(line, "{cell:<width$}  ").unwrap_or(());
+            }
+        }
+        writeln!(out, "{line}")
+    };
+
+    if headers {
+        write_row(out, columns)?;
+        let dashes: Vec<String> = widths.iter().map(|w| "-".repeat(*w)).collect();
+        write_row(out, &dashes)?;
+    }
+    for row in &rendered_rows {
+        write_row(out, row)?;
+    }
+    Ok(())
+}
+
+/// One `column_name = value` line per column, a blank line between
+/// rows (not `.headers`-gated — `.mode line` always labels every
+/// value with its column name, matching stock `sqlite3`).
+fn print_line(out: &mut impl Write, columns: &[String], rows: &[Vec<Value>]) -> io::Result<()> {
+    let name_width = columns.iter().map(String::len).max().unwrap_or(0);
+    let mut scratch: Vec<u8> = Vec::new();
+    for (row_i, row) in rows.iter().enumerate() {
+        if row_i > 0 {
+            writeln!(out)?;
+        }
+        for (i, value) in row.iter().enumerate() {
+            let name = columns.get(i).map(String::as_str).unwrap_or("");
+            writeln!(
+                out,
+                "{name:<name_width$} = {}",
+                cell_string(&mut scratch, value)
+            )?;
+        }
+    }
+    Ok(())
+}

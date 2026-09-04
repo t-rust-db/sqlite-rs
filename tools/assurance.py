@@ -1,0 +1,806 @@
+#!/usr/bin/env python3
+"""sqlite-rs Assurance Dashboard — the case, assembled from four levels.
+
+"Assurance" is the argument that the project is fit for purpose; this
+script assembles it from four independently-measurable levels:
+
+    Model:                      where are we in the plan (version -> V-block/
+                                 phase/epic per the one-minor-per-phase policy)
+                                 and how much of the grammar model each block
+                                 defines (.openspec/grammar/sqlite.ebnf V-block
+                                 rule counts).
+    Traceability (S->P, E->P): do spec, program and evidence connect?
+                                 measured here, scenario-weighted.
+    Evidence:                   corpus files present, line coverage if cached.
+                                 measured here (reads cached results, doesn't run anything).
+    Verification:                does the program satisfy its spec?
+                                 NOT measured here — see `make verification` / `make test`.
+
+Features (keep this list current — spec 005's maintenance rule applies
+to this header too):
+
+1.  Spec parsing: walks `.openspec/specs/*/spec.md`, extracting every
+    `### Requirement N: Title [LEVEL]` block and its `#### Scenario:` blocks.
+
+2.  Planned exclusion: an Implementation link suffixed `(planned)` marks the
+    requirement as future work — excluded from all scores, shown as [P] in
+    verbose mode. Flipping planned -> active is how the dashboard tracks
+    V-block progress.
+
+3.  Completeness (S->P): fraction of active requirements whose
+    `**Implementation:**` file exists on disk (path resolved inside the
+    repo; `::qualifiers` stripped). STRICT: only two states matter —
+    defined-in-spec (the denominator) and linked-to-real-code (the
+    numerator). A declared link with no file behind it contributes
+    nothing; if it dangles it is reported as a DEAD LINK. There is no
+    intermediate "linked" credit.
+
+4.  Coverage (E->P), scenario-weighted: a requirement with 5 scenarios and
+    1 valid test link scores 1/5, not 100%. Per requirement:
+      covered = scenarios with their own valid link
+              + min(requirement-level valid links, scenarios still uncovered)
+              - dead links (see feature 8) — a dead link is a false claim
+                of coverage, worse than no link, so it can drive a
+                requirement's score below 0, not just to 0.
+    A requirement with no scenarios falls back to binary (any valid link),
+    unless it has a dead link, in which case it scores negative too.
+
+5.  Per-scenario Tests links (preferred convention): a `**Tests:**` line
+    INSIDE a `#### Scenario:` block backs exactly that scenario.
+    Requirement-level `**Tests:**` lines (before the first scenario) remain
+    supported as a pool counted against remaining scenarios.
+
+6.  Existence validation: a listed test link only counts if its file exists
+    on disk. A link to a not-yet-written test is a plan, not evidence
+    (symmetric with Completeness).
+
+7.  Symbol validation: a link of the form `path/file.rs::symbol` (or
+    `::Class::method`) only counts if the trailing symbol name also occurs
+    in the file. File-exists-but-symbol-missing is a dead link.
+
+8.  Dead-link reporting: every declared link that fails validation (missing
+    file or missing symbol) is counted, summarized in the dashboard, and
+    listed per-requirement in --verbose. Penalized in Coverage (feature 4),
+    not merely excluded — a link that once worked and now dangles is
+    documentation rot, a stronger signal than a requirement that was
+    never linked at all. Dead links on `planned` requirements don't count
+    here (feature 2 excludes planned from all scoring) — a not-yet-written
+    test path on unimplemented work is a forward reference, not rot.
+
+9.  Corpus links: `**Corpus:**` fixture paths are checked for existence and
+    reported at the Evidence level.
+
+10. Line coverage: reads cached cargo-llvm-cov (target/llvm-cov.json) or
+    tarpaulin output if present; never runs coverage itself.
+
+10b. Mutation score: reads cached cargo-mutants output
+    (target/mutants.out/outcomes.json, written by `make mutants`);
+    never runs mutation testing itself. Caught/(caught+missed), same
+    convention cargo-mutants itself uses (unviable/timeout excluded
+    from the denominator).
+
+11. CI gate: --min X exits 1 if completeness OR coverage is below X.
+
+12. Opcode completeness: VDBE opcodes dispatched in `src/vdbe/exec.rs`
+    vs. the harvested scope in `tools/opcodes-v2.json` (#58/#65). Shown
+    in the Model section once phase 3 (#89/#90/#91) gives it a nonzero
+    denominator to count against.
+
+13. Model level — three sources, cross-checked:
+    - Cargo.toml: crate version, mapped to V-block/phase/epic via
+      VERSION_MAP (one minor per completed plan phase; released =
+      last completed phase, in-flight = next minor)
+    - .openspec/plan.md: the value-blocks table is the source of
+      block names/descriptions and the block-count denominator
+    - .openspec/grammar/sqlite.ebnf: grammar-model rule counts per
+      V-block tag; a tag not present in plan.md's blocks is DRIFT
+
+Usage:
+    python3 tools/assurance.py                    # full dashboard (traceability + evidence)
+    python3 tools/assurance.py --verbose           # per-requirement detail + dead links
+    python3 tools/assurance.py --traceability-only # fast path: no corpus/coverage I/O
+    python3 tools/assurance.py --min 0.80          # CI gate: exit 1 if below 80%
+
+Link syntax accepted on **Tests:** / **Implementation:** lines:
+    `tests/record_test.rs`                          file only
+    `tests/record_test.rs::test_varint_lengths`     file + symbol
+    `src/x.rs::Struct::method`                      trailing symbol is checked
+    inline #[cfg(test)] in src/record/varint.rs     prose containing a path
+    comma-separated lists of the above
+"""
+
+import argparse
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+SPEC_DIR = Path(__file__).parent.parent / ".openspec" / "specs"
+REPO_ROOT = Path(__file__).parent.parent.resolve()
+EBNF_PATH = REPO_ROOT / ".openspec" / "grammar" / "sqlite.ebnf"
+PARITY_DIR = REPO_ROOT / "tests" / "parity"
+
+# The 4 gated comparison dimensions from issue #72 (VM instructions is
+# informational-only and deliberately excluded from this count).
+PARITY_DIMENSIONS = ("acceptance", "output", "schema", "plan")
+CARGO_TOML = REPO_ROOT / "Cargo.toml"
+PLAN_PATH = REPO_ROOT / ".openspec" / "plan.md"
+OPCODES_JSON = REPO_ROOT / "tools" / "opcodes-v2.json"
+SQLLOGICTEST_JSON = REPO_ROOT / "tools" / "sqllogictest-status.json"
+VDBE_EXEC = REPO_ROOT / "src" / "vdbe" / "exec.rs"
+
+# Versioning policy (CHANGELOG): one minor per completed plan phase.
+# minor -> (value block, phase, epic). Extend as blocks are planned.
+VERSION_MAP = {
+    1: ("V1", 1, "#5"),  2: ("V1", 2, "#5"),
+    3: ("V1", 3, "#5"),  4: ("V1", 4, "#5"),
+    5: ("V2", 1, "#56"), 6: ("V2", 2, "#56"),
+    7: ("V2", 3, "#56"), 8: ("V2", 4, "#56"),
+    9: ("V3", 1, "#161"),  10: ("V3", 2, "#161"),
+    11: ("V3", 3, "#161"), 12: ("V3", 4, "#161"),
+    13: ("V4", 1, "#234"),
+    14: ("V5", 1, "#353"),
+    15: ("V6", 1, "#354"),  16: ("V6", 2, "#354"),
+    17: ("V6", 3, "#354"),
+    18: ("V7", 2, "#421"),
+}
+
+
+def crate_version():
+    m = re.search(r'^version\s*=\s*"(\d+)\.(\d+)\.(\d+)"', CARGO_TOML.read_text(), re.MULTILINE)
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+
+
+def oracle_target():
+    """Pinned sqlite3 version from Cargo.toml's [package.metadata.oracle].
+
+    One value drives the oracle binary, the parse.y the grammar is
+    re-derived from, and the TCL suite the SQL corpus is extracted from;
+    `make version-pin` keeps the sites that cannot read it at run time
+    (oracle.rs's const, CI's env) in agreement.
+    """
+    m = re.search(
+        r'^\[package\.metadata\.oracle\]\s*$.*?^version\s*=\s*"([^"]+)"',
+        CARGO_TOML.read_text(),
+        re.MULTILINE | re.DOTALL,
+    )
+    return m.group(1) if m else None
+
+
+def plan_blocks():
+    """Value blocks from plan.md's '## Value Blocks' table: {V-block: description}."""
+    if not PLAN_PATH.exists():
+        return {}
+    blocks = {}
+    for m in re.finditer(
+        r"^\|\s*\*\*(V\d+)(?:\s+\w+)?\*\*\s*\|\s*([^|]+?)\s*\|", PLAN_PATH.read_text(), re.MULTILINE
+    ):
+        blocks.setdefault(m.group(1), m.group(2))
+    return blocks
+
+
+def grammar_model():
+    """V-block rule counts from the grammar EBNF (feature 12)."""
+    if not EBNF_PATH.exists():
+        return {}
+    counts = {}
+    for m in re.finditer(r"\(\*\s*(V\d+)[^)]*\*\)", EBNF_PATH.read_text()):
+        counts[m.group(1)] = counts.get(m.group(1), 0) + 1
+    return counts
+
+
+def parity_model():
+    """Per-V-block dimension coverage from tests/parity/vNN.rs (issue #72).
+
+    Heuristic, same style as grammar_model()'s regex counting: for each
+    vNN.rs file, a #[test] fn counts toward a dimension if it is not
+    #[ignore]d and its name mentions that dimension. Approximate (name-based,
+    not AST-based) by design — good enough for a progress indicator, not a
+    correctness check.
+    """
+    if not PARITY_DIR.exists():
+        return {}
+    blocks = {}
+    for path in sorted(PARITY_DIR.glob("v[0-9][0-9].rs")):
+        block = path.stem.upper()
+        text = path.read_text()
+        fns = re.split(r"(?=#\[test\])", text)
+        dims_hit = set()
+        for fn in fns:
+            if not fn.startswith("#[test]"):
+                continue
+            if re.search(r"#\[test\]\s*\n\s*#\[ignore", fn):
+                continue
+            name_m = re.search(r"fn\s+(\w+)", fn)
+            name = name_m.group(1) if name_m else ""
+            for dim in PARITY_DIMENSIONS:
+                if dim in name:
+                    dims_hit.add(dim)
+        blocks[block] = len(dims_hit)
+    return blocks
+
+
+def opcode_model():
+    """VDBE opcodes dispatched (`src/vdbe/exec.rs`) vs. harvested scope
+    (`tools/opcodes-v2.json`, #58/#65). Returns (implemented, total) or
+    None if either input is missing.
+
+    Heuristic, same style as parity_model()/tier_model(): an opcode
+    counts as implemented if `dispatch`'s match has a real arm for it,
+    not the `other => Unimplemented` catch-all. `Opcode::ALL`
+    (src/vdbe/program.rs) is checked against this same JSON by
+    tests/unit/vdbe_opcode_completeness_test.rs, so the total here always
+    equals the full frozen set.
+    """
+    if not OPCODES_JSON.exists() or not VDBE_EXEC.exists():
+        return None
+    import json
+
+    harvested = set(json.loads(OPCODES_JSON.read_text())["opcodes"])
+    m = re.search(r"fn dispatch\b.*?\{(.*)\n\}\n", VDBE_EXEC.read_text(), re.DOTALL)
+    if not m:
+        return None
+    implemented = set()
+    for line in m.group(1).splitlines():
+        arm = re.match(r"\s*([\w\s|]+?)\s*=>", line)
+        if not arm:
+            continue
+        for name in arm.group(1).split("|"):
+            name = name.strip()
+            if name and name not in ("other", "_"):
+                implemented.add(name)
+    return len(implemented & harvested), len(harvested)
+
+
+def sqllogictest_model():
+    """sqllogictest slice results (`tools/sqllogictest-status.json`, #96).
+
+    Returns (pass, attempted, queries) or None if the runner has never
+    been run. Unlike the other models here this file is *generated* by
+    `make test-sqllogictest` rather than derived from source, so a stale
+    file reports the last run, not the current tree — the CI job
+    regenerates it on every push.
+
+    Reported as a pair (pass rate AND coverage) on purpose: pass rate
+    alone reads as a perfect score while most of the corpus is still
+    skipped as out-of-slice.
+    """
+    if not SQLLOGICTEST_JSON.exists():
+        return None
+    import json
+
+    try:
+        total = json.loads(SQLLOGICTEST_JSON.read_text())["total"]
+        return (
+            total["pass"],
+            total["attempted"],
+            total["queries"],
+            total.get("suspect", 0),
+        )
+    except (ValueError, KeyError):
+        return None
+
+
+MAKEFILE_PATH = REPO_ROOT / "Makefile"
+TIERS_DIR = REPO_ROOT / "tests" / "tiers"
+
+
+def mvl_limit_model():
+    """Files exempt from the qualified-subset gate (Makefile MVL_LIMIT_EXCLUDE).
+
+    A style exclusion (no dyn/unsafe/lifetimes ban), not a safety one — the
+    crate is unconditionally #![forbid(unsafe_code)] regardless of this list.
+    """
+    if not MAKEFILE_PATH.exists():
+        return None
+    m = re.search(r"^MVL_LIMIT_EXCLUDE\s*:?=\s*(.+)$", MAKEFILE_PATH.read_text(), re.MULTILINE)
+    if not m:
+        return None
+    return m.group(1).split()
+
+
+def tier_model():
+    """Active/total #[test] counts per tests/tiers/tierN.rs (feature 001/Req-4).
+
+    "Active" is a #[test] fn not immediately preceded by #[ignore = "..."]
+    — i.e. a tier contract already discharged rather than stubbed.
+    """
+    counts = {}
+    for n in range(4):
+        path = TIERS_DIR / f"tier{n}.rs"
+        if not path.exists():
+            continue
+        text = path.read_text()
+        total = len(re.findall(r"#\[test\]", text))
+        ignored = len(re.findall(r'#\[test\]\s*\n\s*#\[ignore(?:\s*=\s*"[^"]*")?\]', text))
+        counts[f"T{n}"] = (total - ignored, total)
+    return counts
+
+
+def report_model():
+    """Print the Model level: totals only. Returns detail lines for --verbose.
+
+    Plan position (plan.md + Cargo.toml) + grammar/parity/tier/opcode/
+    qualified-subset models. Each model line here is a total; the
+    per-V-block/per-tier/per-file breakdown behind it is returned as
+    detail lines, printed under a separate "Model Detail" section only
+    when --verbose is passed — keeps the default dashboard to one line
+    per model instead of wrapping onto a second line per model.
+    """
+    print("-- Model " + "-" * 51)
+    detail = []
+    blocks = plan_blocks()
+    ver = crate_version()
+    if ver:
+        _, minor, _ = ver
+        released = VERSION_MAP.get(minor)
+        working = VERSION_MAP.get(minor + 1)
+        vstr = ".".join(str(x) for x in ver)
+        if released:
+            block, phase, epic = released
+            line = f"Version {vstr} = {block} phase {phase} released (epic {epic})"
+            print(line)
+            if working:
+                wb, wp, we = working
+                title = blocks.get(wb, "")
+                suffix = f" — {title}" if title else ""
+                print(f"In flight:            0.{minor + 1}.0 = {wb} phase {wp} (epic {we}){suffix}")
+        else:
+            print(f"Version {vstr} (no VERSION_MAP entry — extend the map)")
+    if blocks:
+        print(f"Plan:                 {len(blocks)} value blocks (.openspec/plan.md)")
+    target = oracle_target()
+    if target:
+        print(f"Oracle target:        sqlite {target} — pinned in Cargo.toml [package.metadata.oracle]")
+        detail.append(
+            f"Oracle target:        sqlite {target} drives the oracle binary, parse.y and the "
+            "TCL corpus; all pin sites gated by `make version-pin`"
+        )
+    else:
+        print("Oracle target:        [package.metadata.oracle] missing from Cargo.toml")
+    model = grammar_model()
+    if model:
+        total = sum(model.values())
+        print(f"Grammar model:        {total} rules defined, covers {len(model)}/{len(blocks) or '?'} plan blocks — .openspec/grammar/sqlite.ebnf")
+        parts = ", ".join(f"{k}: {v}" for k, v in sorted(model.items()))
+        detail.append(f"Grammar model:        {parts}; drift-checked by `make grammar-drift`")
+        unknown_tags = sorted(set(model) - set(blocks)) if blocks else []
+        if unknown_tags:
+            print(f"  DRIFT: grammar tags not in plan.md value blocks: {', '.join(unknown_tags)}")
+    else:
+        print("Grammar model:        .openspec/grammar/sqlite.ebnf missing")
+    parity = parity_model()
+    if parity:
+        n_gated = len(PARITY_DIMENSIONS)
+        gated_blocks = sum(1 for n in parity.values() if n > 0)
+        denom = len(blocks) or len(parity)
+        print(f"Parity:               {gated_blocks}/{denom} plan blocks gated (of {n_gated} dimensions each) — tests/parity/ (#72)")
+        parts = []
+        pending = []
+        for block in sorted(parity):
+            n = parity[block]
+            if n == 0:
+                pending.append(block)
+            else:
+                parts.append(f"{block} {n}/{n_gated}")
+        summary = " · ".join(parts)
+        if pending:
+            summary += (" · " if summary else "") + f"{pending[0]}+ pending"
+        detail.append(f"Parity:               {summary}")
+    tiers = tier_model()
+    if tiers:
+        active_total = sum(a for a, _ in tiers.values())
+        total_total = sum(t for _, t in tiers.values())
+        print(f"Tier contracts:       {active_total}/{total_total} active — tests/tiers/")
+        parts = " · ".join(f"{k} {active}/{total}" for k, (active, total) in sorted(tiers.items()))
+        detail.append(f"Tier contracts:       {parts}")
+    opcodes = opcode_model()
+    if opcodes:
+        impl, total = opcodes
+        print(f"Opcode completeness:  {impl}/{total} VDBE opcodes dispatched (tools/opcodes-v2.json, #65)")
+    slt = sqllogictest_model()
+    if slt:
+        passed, attempted, queries, suspect = slt
+        rate = (passed / attempted * 100) if attempted else 0.0
+        cov = (attempted / queries * 100) if queries else 0.0
+        # A nonzero suspect count means queries were declined for a
+        # reason that should not happen against oracle-validated input
+        # — surfaced inline so it can't hide inside the skip bucket.
+        suspect_note = f", {suspect} SUSPECT" if suspect else ""
+        print(
+            f"sqllogictest slice:   {passed}/{attempted} passing ({rate:.1f}%), "
+            f"{attempted}/{queries} attempted ({cov:.1f}% of corpus{suspect_note}, #96)"
+        )
+    print()
+    return detail
+
+
+def _validate_link(entry):
+    """Validate one link entry. Returns (entry, error) — error is None if valid.
+
+    Feature 6 (file must exist) and feature 7 (trailing ::symbol must occur
+    in the file). Prose entries ("inline #[cfg(test)] in src/x.rs") are
+    reduced to their path token first.
+    """
+    entry = re.sub(r"\(planned[^)]*\)", "", entry).replace("`", "").strip()
+    if not entry:
+        return None
+    parts = entry.split("::")
+    file_part = parts[0].strip()
+    m = re.search(r"[\w/.-]+\.(?:rs|py|sh|toml)", file_part)
+    if m:
+        file_part = m.group(0)
+    resolved = (REPO_ROOT / file_part).resolve()
+    if not (resolved.is_relative_to(REPO_ROOT) and resolved.exists() and resolved.is_file()):
+        return (entry, "file missing")
+    if len(parts) > 1:
+        symbol = re.sub(r"\(.*\)$", "", parts[-1].strip())
+        if symbol and symbol not in resolved.read_text():
+            return (entry, f"symbol '{symbol}' not in file")
+    return (entry, None)
+
+
+def _parse_tests_line(text):
+    """Extract comma-separated link entries from the first **Tests:** line in text."""
+    m = re.search(r"\*\*Tests:\*\*\s*(.+)", text)
+    if not m:
+        return []
+    return [e for e in (x.strip() for x in m.group(1).split(",")) if e]
+
+
+def parse_specs():
+    """Parse all spec files and extract requirements (features 1-2, 5-9)."""
+    requirements = []
+    for spec_dir in sorted(SPEC_DIR.iterdir()):
+        spec_file = spec_dir / "spec.md" if spec_dir.is_dir() else None
+        if not spec_file or not spec_file.exists():
+            continue
+
+        text = spec_file.read_text()
+        spec_name = spec_dir.name
+
+        req_blocks = re.split(r"(?=^### Requirement \d+)", text, flags=re.MULTILINE)
+        for block in req_blocks:
+            m = re.match(r"### Requirement (\d+): (.+?) \[(\w+)\]", block)
+            if not m:
+                continue
+
+            num, title, level = m.group(1), m.group(2), m.group(3)
+
+            # Split into requirement preamble and per-scenario chunks (feature 5)
+            chunks = re.split(r"(?=^#### Scenario:)", block, flags=re.MULTILINE)
+            preamble, scenario_blocks = chunks[0], chunks[1:]
+            scenarios = len(scenario_blocks)
+
+            # Implementation link (feature 3) — from preamble only
+            impl_match = re.search(
+                r"\*\*Implementation:\*\*\s*`(.+?)`(\s*\(planned[^)]*\))?", preamble
+            )
+            impl_path = impl_match.group(1) if impl_match else None
+            planned = bool(impl_match and impl_match.group(2))
+            impl_exists = False
+            if impl_path and not planned:
+                impl_file = impl_path.split("::")[0].strip()
+                resolved = (REPO_ROOT / impl_file).resolve()
+                impl_exists = resolved.is_relative_to(REPO_ROOT) and resolved.exists()
+
+            dead_links = []
+
+            # Requirement-level Tests pool (from preamble, feature 4/6/7)
+            tests_declared = 0
+            req_level_valid = 0
+            for entry in _parse_tests_line(preamble):
+                v = _validate_link(entry)
+                if v is None:
+                    continue
+                tests_declared += 1
+                if v[1] is None:
+                    req_level_valid += 1
+                else:
+                    dead_links.append(v)
+
+            # Per-scenario Tests links (feature 5)
+            scenarios_backed = 0
+            for sb in scenario_blocks:
+                entries = _parse_tests_line(sb)
+                backed = False
+                for entry in entries:
+                    v = _validate_link(entry)
+                    if v is None:
+                        continue
+                    tests_declared += 1
+                    if v[1] is None:
+                        backed = True
+                    else:
+                        dead_links.append(v)
+                if backed:
+                    scenarios_backed += 1
+
+            # Corpus links (feature 9) — anywhere in the block
+            corpus_files = re.findall(r"\*\*Corpus:\*\*\s*`(.+?)`", block)
+            corpus_present = all((REPO_ROOT / f).exists() for f in corpus_files)
+
+            requirements.append(
+                {
+                    "spec": spec_name,
+                    "num": int(num),
+                    "title": title,
+                    "level": level,
+                    "impl_path": impl_path,
+                    "impl_exists": impl_exists,
+                    "planned": planned,
+                    "tests_declared": tests_declared,
+                    "req_level_valid": req_level_valid,
+                    "scenarios_backed": scenarios_backed,
+                    "dead_links": dead_links,
+                    "corpus_files": corpus_files,
+                    "corpus_present": corpus_present,
+                    "scenarios": scenarios,
+                }
+            )
+
+    return requirements
+
+
+def covered_scenarios(r):
+    """Net scenarios backed by a valid test link, minus a dead-link penalty (feature 4).
+
+    Scenario-level links back their own scenario; requirement-level links are
+    a pool counted against scenarios not already backed directly. A dead
+    link (file/symbol validated and found missing — feature 6/7) is worse
+    than no link at all: it's a false claim of coverage, so each one
+    subtracts a full scenario's worth of credit rather than contributing
+    zero. This can drive the net below 0 — deliberately, so a
+    dead-link-heavy requirement scores visibly worse than an honestly
+    uncovered one, not the same as it.
+    """
+    dead = len(r["dead_links"])
+    if r["scenarios"] == 0:
+        return -dead
+    remaining = r["scenarios"] - r["scenarios_backed"]
+    return r["scenarios_backed"] + min(r["req_level_valid"], remaining) - dead
+
+
+def scenario_coverage(r):
+    """Fraction of a requirement's falsifiable claims backed by a valid test link.
+
+    Can be negative when dead links outweigh valid ones (see
+    covered_scenarios) — that's the point, not a bug: it must read as
+    worse than the 0.0 a requirement with no links at all gets.
+    """
+    if r["scenarios"] == 0:
+        if r["dead_links"]:
+            return float(covered_scenarios(r))
+        return 1.0 if (r["req_level_valid"] + r["scenarios_backed"]) > 0 else 0.0
+    return covered_scenarios(r) / r["scenarios"]
+
+
+def _get_test_coverage():
+    """Read cached line coverage (feature 10). Never runs coverage itself."""
+    llvm_cov_out = REPO_ROOT / "target" / "llvm-cov.json"
+    if llvm_cov_out.exists():
+        try:
+            import json
+            data = json.loads(llvm_cov_out.read_text())
+            lines = data["data"][0]["totals"]["lines"]
+            return f"{lines['percent']:.1f}% ({lines['covered']}/{lines['count']} lines)"
+        except (json.JSONDecodeError, KeyError, IndexError):
+            pass
+
+    tarpaulin_out = REPO_ROOT / "target" / "tarpaulin" / "coverage.json"
+    if tarpaulin_out.exists():
+        try:
+            import json
+            data = json.loads(tarpaulin_out.read_text())
+            if "coverage" in data:
+                return f"{data['coverage']:.1f}%"
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    return None
+
+
+def _get_mutation_score():
+    """Read cached cargo-mutants results (`make mutants` -> target/mutants.out).
+
+    Never runs mutation testing itself, same discipline as
+    `_get_test_coverage()`. Score excludes `unviable` (didn't compile —
+    not a real test gap) and `timeout` (inconclusive) from the
+    denominator, matching cargo-mutants' own convention.
+    """
+    outcomes = REPO_ROOT / "target" / "mutants.out" / "outcomes.json"
+    if not outcomes.exists():
+        return None
+    try:
+        import json
+        data = json.loads(outcomes.read_text())
+        caught = data["caught"]
+        missed = data["missed"]
+        denom = caught + missed
+        if denom == 0:
+            return f"{caught}/{denom} caught (no scored mutants)"
+        pct = 100 * caught / denom
+        return f"{caught}/{denom} caught ({pct:.0f}%, {data['unviable']} unviable, {data['timeout']} timeout)"
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
+def _get_gate_status(json_name, rerun_hint):
+    """Read a cached gate-run commit (target/<json_name>) and report how
+    many commits have landed on HEAD since that run — the gate itself
+    isn't re-checked between runs, so this is a staleness signal, not a
+    pass/fail re-check.
+
+    Returns None if never run (no target/<json_name>), else a string;
+    never runs the gate itself, same discipline as coverage/mutation.
+    """
+    gate_json = REPO_ROOT / "target" / json_name
+    if not gate_json.exists():
+        return None
+    try:
+        import json
+        commit = json.loads(gate_json.read_text())["commit"]
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+    result = subprocess.run(
+        ["git", "rev-list", "--count", f"{commit}..HEAD"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return f"last run at {commit[:7]} (not in current history — rebase?)"
+
+    count = int(result.stdout.strip())
+    short = commit[:7]
+    if count == 0:
+        return f"up to date ({short})"
+    plural = "s" if count != 1 else ""
+    return f"{count} commit{plural} since last run ({short}) — run `{rerun_hint}`"
+
+
+def _get_verify_status():
+    return _get_gate_status("verify.json", "make verify")
+
+
+def _get_supply_chain_status():
+    return _get_gate_status("supply-chain.json", "make supply-chain")
+
+
+def report(requirements, verbose=False, traceability_only=False):
+    """Print the assurance dashboard: Traceability, then Evidence.
+
+    Planned requirements are excluded from totals (feature 2). Returns
+    (completeness, coverage) — two independent traceability ratios.
+    """
+    planned_count = sum(1 for r in requirements if r["planned"])
+    active = [r for r in requirements if not r["planned"]]
+    total = len(active)
+    if total == 0:
+        print("No requirements found in .openspec/specs/")
+        return 0.0, 0.0
+
+    impl_exists = sum(1 for r in active if r["impl_exists"])
+    total_scenarios = sum(r["scenarios"] for r in active)
+
+    completeness = impl_exists / total if total else 0
+    coverage = sum(scenario_coverage(r) for r in active) / total if total else 0
+
+    total_dead = sum(len(r["dead_links"]) for r in active)
+    backed = sum(covered_scenarios(r) for r in active)
+    direct = sum(r["scenarios_backed"] for r in active)
+
+    print("=" * 60)
+    print("sqlite-rs Assurance Case")
+    print("=" * 60)
+    spec_files = sorted(SPEC_DIR.glob("*/spec.md"))
+    # Functional specs are 001-099; 900-999 are cross-cutting concerns. Split
+    # them so the count says what kind of coverage the number represents.
+    cross_cutting = sum(1 for s in spec_files if s.parent.name[:1] == "9")
+    functional = len(spec_files) - cross_cutting
+    suffix = f" ({functional} functional, {cross_cutting} cross-cutting)" if cross_cutting else ""
+    print(f"Specs:            {len(spec_files)}{suffix}")
+    print(f"Requirements:     {total}" + (f" ({planned_count} planned excluded)" if planned_count else ""))
+    print(f"Scenarios:        {total_scenarios}")
+    print()
+    model_detail = report_model()
+    print("-- Traceability " + "-" * 44)
+    print(f"Completeness (S->P):  {impl_exists}/{total} requirements implemented  ({completeness:.0%})")
+    print(f"Coverage (E->P):      {backed}/{total_scenarios} scenarios test-backed  ({coverage:.0%}, {direct} per-scenario)")
+    if total_dead:
+        print(f"DEAD LINKS:           {total_dead} — false claims of coverage, penalized below 0 in Coverage above; fix the spec (see --verbose)")
+
+    if not traceability_only:
+        corpus_total = sum(1 for r in active if r["corpus_files"])
+        corpus_present = sum(1 for r in active if r["corpus_files"] and r["corpus_present"])
+        test_coverage = _get_test_coverage()
+        mutation_score = _get_mutation_score()
+
+        print()
+        print("-- Evidence " + "-" * 48)
+        if corpus_total:
+            print(f"Corpus files present: {corpus_present}/{corpus_total}")
+        else:
+            print("Corpus files present: n/a (no **Corpus:** links)")
+        print(f"Line coverage:        {test_coverage if test_coverage is not None else 'not cached — run `make coverage`'}")
+        print(f"Mutation score:       {mutation_score if mutation_score is not None else 'not cached — run `make mutants`'}")
+
+    print()
+    print("-- Verification " + "-" * 44)
+    exclusions = mvl_limit_model()
+    if exclusions:
+        print(f"Qualified-subset:     {len(exclusions)} files exempt from mvl-limit (dyn boundary: VFS traits + the VDBE's Rc<dyn PageSource>, not unsafe — #80; src/bin is I/O)")
+        model_detail.append("Qualified-subset:")
+        model_detail.extend(f"  {f}" for f in exclusions)
+    if not traceability_only:
+        verify_status = _get_verify_status()
+        print(f"Verify:               {verify_status if verify_status is not None else 'never run — `make verify` (coverage-gate + deny + mvl-limit + mod-files)'}")
+        supply_chain_status = _get_supply_chain_status()
+        print(f"Supply chain:         {supply_chain_status if supply_chain_status is not None else 'never run — `make supply-chain` (deny + audit)'}")
+    print("Not measured here — run `make verification` (alias for `make test`) or `make mvl-limit`")
+    print("=" * 60)
+
+    if verbose:
+        if model_detail:
+            print()
+            print("-- Model Detail " + "-" * 44)
+            for line in model_detail:
+                print(line)
+        print()
+        print("  Legend: [impl][tests][corpus]")
+        print("    impl:   ✓=exists  ○=linked/missing  P=planned  ✗=not linked")
+        print("    tests:  T=all scenarios backed  t=partially  -=none")
+        print("    corpus: C=present c=linked/missing  -=none")
+        print()
+        for r in requirements:
+            if r["planned"]:
+                status = "P"
+            else:
+                status = "✓" if r["impl_exists"] else "○" if r["impl_path"] else "✗"
+            cov = scenario_coverage(r)
+            test_status = "T" if cov >= 1.0 else "t" if cov > 0.0 else "-"
+            corpus_status = (
+                "C" if r["corpus_files"] and r["corpus_present"]
+                else "c" if r["corpus_files"]
+                else "-"
+            )
+            print(
+                f"  [{status}][{test_status}][{corpus_status}] "
+                f"{r['spec']}/Req {r['num']}: {r['title']} "
+                f"({covered_scenarios(r)}/{r['scenarios']} scenarios backed)"
+            )
+            for entry, err in r["dead_links"]:
+                print(f"        DEAD: {entry} — {err}")
+
+    return completeness, coverage
+
+
+def main():
+    parser = argparse.ArgumentParser(description="sqlite-rs Assurance Dashboard")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Show each requirement + dead links")
+    parser.add_argument(
+        "--traceability-only",
+        action="store_true",
+        help="Skip Evidence section (corpus/coverage I/O) — fast path for `make traceability`",
+    )
+    parser.add_argument("--min", type=float, default=0.0, help="Minimum score (0.0-1.0) for CI gate, applied to both completeness and coverage")
+    args = parser.parse_args()
+
+    requirements = parse_specs()
+    completeness, coverage = report(requirements, verbose=args.verbose, traceability_only=args.traceability_only)
+
+    if args.min > 0:
+        worst = min(completeness, coverage)
+        if worst < args.min:
+            print(f"\nFAIL: below threshold {args.min:.0%}")
+            print(f"  completeness: {completeness:.0%}")
+            print(f"  coverage:     {coverage:.0%}")
+            sys.exit(1)
+        else:
+            print(f"\nPASS: completeness {completeness:.0%}, coverage {coverage:.0%} — both above {args.min:.0%}")
+
+
+if __name__ == "__main__":
+    main()

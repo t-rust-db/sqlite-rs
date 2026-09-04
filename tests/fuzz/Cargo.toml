@@ -1,0 +1,63 @@
+[package]
+name = "sqlite-rs-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.sqlite-rs]
+path = "../.."
+
+[[bin]]
+name = "btree_cursor"
+path = "fuzz_targets/btree_cursor.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wal_frames"
+path = "fuzz_targets/wal_frames.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decode_record"
+path = "fuzz_targets/decode_record.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse_select"
+path = "fuzz_targets/parse_select.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "semantics_compare"
+path = "fuzz_targets/semantics_compare.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "scalar_functions"
+path = "fuzz_targets/scalar_functions.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "vdbe_exec"
+path = "fuzz_targets/vdbe_exec.rs"
+test = false
+doc = false
+bench = false

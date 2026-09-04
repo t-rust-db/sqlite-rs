@@ -1,0 +1,10 @@
+[package]
+name = "spike-mvl-refinements"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+mvl = { git = "https://github.com/mvl-lang/mvl-rust", rev = "3e3ade7056e5466970bd7e2a602338f133ce2fd9", version = "0.8.0" }
+
+[workspace]

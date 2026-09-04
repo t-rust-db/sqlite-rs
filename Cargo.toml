@@ -1,0 +1,309 @@
+[package]
+name = "sqlite-rs"
+version = "0.18.10"
+edition = "2021"
+publish = false
+license = "Apache-2.0"
+description = "A binary-compatible Rust replication of SQLite"
+repository = "https://github.com/iheitlager/sqlite-rs"
+documentation = "https://docs.rs/sqlite-rs"
+keywords = ["sqlite", "database", "sql", "embedded"]
+categories = ["database", "database-implementations"]
+
+[dependencies]
+
+# Test-only helper: a genuine second OS process for `src/vfs/lock.rs` and
+# `src/vfs/shm.rs`'s cross-process lock-contention tests (#66). Not a
+# `#[[test]]` itself — spawned via `Command`/`CARGO_BIN_EXE_lock_probe`.
+[[bin]]
+name = "lock_probe"
+path = "tests/helpers/lock_probe.rs"
+
+# Test-only helper: a genuine second OS process for #361's crash-torture
+# test (`tests/corpus/crash_torture_test.rs`) to `kill -9` mid-write-loop
+# — a same-process thread can't be killed independently of the test
+# process itself. Not a `[[test]]` itself — spawned via
+# `Command`/`CARGO_BIN_EXE_write_loop_probe`.
+[[bin]]
+name = "write_loop_probe"
+path = "tests/helpers/write_loop_probe.rs"
+
+[[test]]
+name = "unit_layer_isolation"
+path = "tests/unit/layer_isolation.rs"
+
+[[test]]
+name = "unit_supply_chain_gates"
+path = "tests/unit/supply_chain_gates.rs"
+
+[[test]]
+name = "unit_mcdc_discharge"
+path = "tests/unit/mcdc_discharge_test.rs"
+
+[[test]]
+name = "unit_header"
+path = "tests/unit/header.rs"
+
+[[test]]
+name = "unit_record"
+path = "tests/unit/record.rs"
+
+[[test]]
+name = "unit_vfs"
+path = "tests/unit/vfs.rs"
+
+[[test]]
+name = "unit_parser"
+path = "tests/unit/parser.rs"
+
+[[test]]
+name = "unit_insert_parser"
+path = "tests/unit/insert_parser.rs"
+
+[[test]]
+name = "unit_delete_parser"
+path = "tests/unit/delete_parser.rs"
+
+[[test]]
+name = "unit_ddl_parser"
+path = "tests/unit/ddl_parser.rs"
+
+[[test]]
+name = "unit_transaction_parser"
+path = "tests/unit/transaction_parser.rs"
+
+[[test]]
+name = "unit_pragma_parser"
+path = "tests/unit/pragma_parser.rs"
+
+[[test]]
+name = "unit_pragma_synchronous_repl"
+path = "tests/unit/pragma_synchronous_repl.rs"
+
+[[test]]
+name = "unit_introspection_pragmas"
+path = "tests/unit/introspection_pragmas.rs"
+
+[[test]]
+name = "unit_codegen"
+path = "tests/unit/codegen.rs"
+
+[[test]]
+name = "unit_repl_dot_commands"
+path = "tests/unit/repl_dot_commands.rs"
+
+[[test]]
+name = "unit_repl_history"
+path = "tests/unit/repl_history.rs"
+
+[[test]]
+name = "extracted_sql_corpus"
+path = "tests/corpus/extracted_sql_test.rs"
+
+[[test]]
+name = "vdbe_oracle_vectors"
+path = "tests/unit/vdbe_oracle_vectors_test.rs"
+
+[[test]]
+name = "opcode_completeness"
+path = "tests/unit/vdbe_opcode_completeness_test.rs"
+
+[[test]]
+name = "vdbe_cursor_sorter"
+path = "tests/unit/vdbe_cursor_sorter_test.rs"
+
+[[test]]
+name = "vdbe_cursor_positioning"
+path = "tests/unit/vdbe_cursor_positioning_test.rs"
+
+[[test]]
+name = "vdbe_explain"
+path = "tests/unit/vdbe_explain_test.rs"
+
+[[test]]
+name = "vdbe_write_opcodes"
+path = "tests/unit/vdbe_write_opcodes_test.rs"
+
+[[test]]
+name = "vdbe_integrity_check"
+path = "tests/unit/vdbe_integrity_check_test.rs"
+
+[[test]]
+name = "codegen_expr"
+path = "tests/unit/codegen_expr_test.rs"
+
+[[test]]
+name = "codegen_select"
+path = "tests/unit/codegen_select_test.rs"
+
+[[test]]
+name = "codegen_insert"
+path = "tests/unit/codegen_insert_test.rs"
+
+[[test]]
+name = "codegen_delete"
+path = "tests/unit/codegen_delete_test.rs"
+
+[[test]]
+name = "codegen_update"
+path = "tests/unit/codegen_update_test.rs"
+
+[[test]]
+name = "range_scan"
+path = "tests/unit/range_scan_test.rs"
+
+[[test]]
+name = "tokenizer_proptest"
+path = "tests/proptest/tokenizer_proptest.rs"
+
+[[test]]
+name = "semantics_proptest"
+path = "tests/proptest/semantics_proptest.rs"
+
+[[test]]
+name = "record_proptest"
+path = "tests/proptest/record_proptest.rs"
+
+[[test]]
+name = "btree_proptest"
+path = "tests/proptest/btree_proptest.rs"
+
+[dev-dependencies]
+proptest = "1"
+criterion = "0.8"
+
+# Deliberately no `bundled` feature: the point of tier-1 benching is
+# comparing against the *pinned* oracle (same one gen_fixtures.sh and the
+# corpus harness use), not whatever SQLite version rusqlite happens to
+# vendor. `tools/bench_env.sh` points the build at the pinned Homebrew keg
+# via SQLITE3_LIB_DIR/SQLITE3_INCLUDE_DIR; `benches/engine.rs` asserts the
+# linked version matches at run time so a drift can't pass silently.
+rusqlite = "0.32"
+
+# MD5 is part of the sqllogictest format itself (`"N values hashing to
+# <md5>"` result blocks, #96) — not a project cryptographic dependency, so
+# pulling in a maintained implementation beats hand-rolling a bit-exact
+# digest for a test-only concern.
+md-5 = "0.10"
+
+[[bench]]
+name = "engine"
+path = "tests/performance/engine.rs"
+harness = false
+
+[[bench]]
+name = "crud"
+path = "tests/performance/crud.rs"
+harness = false
+
+[[bench]]
+name = "v6"
+path = "tests/performance/v6.rs"
+harness = false
+
+[[bench]]
+name = "skip_scan"
+path = "tests/performance/skip_scan.rs"
+harness = false
+
+[[bench]]
+name = "compile_path"
+path = "tests/performance/compile_path.rs"
+harness = false
+
+# Single source of truth for the pinned sqlite3 version — the oracle binary,
+# the parse.y the grammar is re-derived from, and the TCL suite the SQL corpus
+# is extracted from all track this one value.
+#
+# Read directly by tools/harvest_opcodes.py, tools/grammar_drift.py,
+# tools/extract_sql_corpus.py and tools/gen_fixtures.sh. The sites that cannot
+# read it at run time — tests/corpus/oracle.rs (a `const`) and CI's
+# SQLITE_ORACLE_VERSION — are held to it by the `make version-pin` gate, so
+# they cannot drift silently.
+#
+# Bumping this is a deliberate, reviewed event (spec 004 Requirement 1): it
+# invalidates committed fixtures, tools/opcodes-v2.json and the grammar's
+# parse.y line citations. Bump, then re-run `make fixtures opcodes sql-corpus
+# grammar-drift test-corpus`.
+[package.metadata.oracle]
+version = "3.53.4"
+
+[profile.bench]
+lto = "thin"
+codegen-units = 1
+debug = true
+
+[lints.rust]
+# Backstop for ADR-0031: `src/lib.rs` and `src/bin/sqlite-rs/main.rs` each
+# carry their own `#![deny(unsafe_code)]`; this makes the crate-wide
+# default explicit at the Cargo.toml level too, so both lib and bin
+# targets are covered even if a module-level attribute is ever dropped.
+# `src/sys/{fcntl,termios}.rs` are the only `#![allow(unsafe_code)]`
+# carve-outs (#592).
+unsafe_code = "deny"
+
+[lints.clippy]
+let_underscore_must_use = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+panic = "deny"
+arithmetic_side_effects = "deny"
+mod_module_files = "deny"
+
+# Excluded from the default `cargo test` run: the corpus harness shells out
+# to a pinned real `sqlite3` and takes ~8s, so it stays behind
+# `make test-corpus` (`cargo test --test corpus`, which still works — this
+# only changes what runs *by default*).
+#
+# Declaring it here rather than filtering by name in the Makefile is what
+# keeps `make test` a plain `cargo test`: every other test target is picked
+# up automatically, so a newly added test file can never be silently
+# dropped. It previously was — `tests/record_proptest.rs`'s 10 tests were
+# built but never run, because the Makefile enumerated targets by name.
+[[test]]
+name = "corpus"
+path = "tests/corpus/main.rs"
+test = false
+
+# Same rationale as "corpus" above: shells out to the pinned oracle, so it
+# stays behind `make test-parity` (`cargo test --test parity`) rather than
+# the default `cargo test` run.
+[[test]]
+name = "parity"
+path = "tests/parity/main.rs"
+test = false
+
+# Same rationale as "corpus"/"parity" above: shells out to the pinned oracle
+# to build each vendored `.test` file's fixture state, so it stays behind
+# `make sqllogictest` (`cargo test --test sqllogictest`) rather than the
+# default `cargo test` run (#96).
+[[test]]
+name = "sqllogictest"
+path = "tests/sqllogictest/main.rs"
+test = false
+
+# Shells out to the pinned oracle to build multi-thousand-row fixtures
+# and takes several seconds — same rationale as "corpus"/"parity" above,
+# stays behind `make test-point-lookup-perf` rather than the default
+# `cargo test` run.
+[[test]]
+name = "point_lookup_perf"
+path = "tests/performance/point_lookup.rs"
+test = false
+
+[[test]]
+name = "tier0"
+path = "tests/tiers/tier0.rs"
+
+[[test]]
+name = "tier1"
+path = "tests/tiers/tier1.rs"
+
+[[test]]
+name = "tier2"
+path = "tests/tiers/tier2.rs"
+
+[[test]]
+name = "tier3"
+path = "tests/tiers/tier3.rs"

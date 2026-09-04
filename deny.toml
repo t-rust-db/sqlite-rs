@@ -1,0 +1,41 @@
+# Supply-chain gate (issue #26, spec 005-assurance Requirement 3). Installed
+# at zero runtime dependencies — the cheapest possible moment. Run via
+# `make check-deny` / `cargo deny check`.
+
+# Unix-only project (the `nix` crate dependency alone rules out Windows).
+# Without this, cargo-deny resolves the full dependency graph across every
+# platform, including Windows-only transitive deps of crates like
+# `rustyline` (e.g. `clipboard-win`, BSL-1.0-licensed) that never build
+# here and shouldn't gate the license check.
+[graph]
+all-features = false
+no-default-features = false
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+]
+
+[advisories]
+ignore = []
+
+[licenses]
+# MIT dropped: no dependency in this project's resolved graph (normal, build,
+# or dev; the four pinned Unix targets) needs it to satisfy its license
+# expression — every crate resolves under Apache-2.0 alone. Re-add MIT here
+# if a future dependency actually requires it (`cargo deny check licenses`
+# will report the missing allowance instead of a silent pass).
+allow = ["Apache-2.0"]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+deny = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
