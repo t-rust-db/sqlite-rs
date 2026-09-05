@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-05T07:18:53.000000000Z",
+    "timestamp": "2026-09-05T11:18:48.000000000Z",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -75,9 +75,9 @@
   "components": [
     {
       "type": "library",
-      "bom-ref": "git+https://github.com/t-rust-db/db-cli?tag=v0.3.0#0.3.0",
+      "bom-ref": "git+https://github.com/t-rust-db/db-cli?tag=v0.4.1#0.4.1",
       "name": "db-cli",
-      "version": "0.3.0",
+      "version": "0.4.1",
       "description": "Generic REPL/readline infrastructure for t-rust-db engine CLIs",
       "scope": "required",
       "licenses": [
@@ -85,7 +85,7 @@
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/db-cli@0.3.0?vcs_url=git%2Bhttps://github.com/t-rust-db/db-cli%40245b9a69cbfeb919deaec393d328c1de9bdb569f"
+      "purl": "pkg:cargo/db-cli@0.4.1?vcs_url=git%2Bhttps://github.com/t-rust-db/db-cli%40b2052b7801144d46e48056184a389811fa8fefd3"
     },
     {
       "type": "library",
@@ -368,7 +368,7 @@
   ],
   "dependencies": [
     {
-      "ref": "git+https://github.com/t-rust-db/db-cli?tag=v0.3.0#0.3.0",
+      "ref": "git+https://github.com/t-rust-db/db-cli?tag=v0.4.1#0.4.1",
       "dependsOn": [
         "registry+https://github.com/rust-lang/crates.io-index#dirs@5.0.1",
         "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189"
@@ -384,7 +384,7 @@
     {
       "ref": "path+file://.#sqlite-rs@0.18.10",
       "dependsOn": [
-        "git+https://github.com/t-rust-db/db-cli?tag=v0.3.0#0.3.0",
+        "git+https://github.com/t-rust-db/db-cli?tag=v0.4.1#0.4.1",
         "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#0.4.1"
       ]
     },

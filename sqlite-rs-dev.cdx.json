@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-05T07:18:53.000000000Z",
+    "timestamp": "2026-09-05T11:18:48.000000000Z",
     "tools": [
       {
         "vendor": "sqlite-rs",
@@ -26,7 +26,7 @@
     "properties": [
       {
         "name": "sqlite-rs:generated-at-commit",
-        "value": "cf4591fc711bf498507cd6eb92ea3b0ca9070f6e"
+        "value": "abc1c6bbcdbe4900bcefc1fa898f649b1855c616"
       }
     ]
   },
@@ -384,16 +384,16 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:cargo/db-cli@0.3.0",
+      "bom-ref": "pkg:cargo/db-cli@0.4.1",
       "name": "db-cli",
-      "version": "0.3.0",
+      "version": "0.4.1",
       "scope": "required",
       "licenses": [
         {
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/db-cli@0.3.0"
+      "purl": "pkg:cargo/db-cli@0.4.1"
     },
     {
       "type": "library",

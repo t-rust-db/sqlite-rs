@@ -17,8 +17,9 @@ use sqlite_rs::record::Value;
 
 use crate::common::CSV_ROW_TERMINATOR;
 
-/// The REPL's `.mode` setting. `List` is the pre-existing default
-/// (pipe-delimited, `write_list_row`); the other three are new.
+/// The REPL's `.mode` setting for the byte-oriented renderers below —
+/// `db_cli::OutputMode` (which owns `.mode` parsing since #15) maps onto
+/// it in `repl.rs`; `table`/`json` render through db-cli directly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OutputMode {
     #[default]
@@ -26,21 +27,6 @@ pub enum OutputMode {
     Csv,
     Column,
     Line,
-}
-
-impl OutputMode {
-    /// Parses a `.mode` argument (`list`/`csv`/`column`/`line`,
-    /// case-insensitive) — `None` for anything else, left to the
-    /// caller to report as an unknown mode.
-    pub fn parse(arg: &str) -> Option<Self> {
-        match arg.to_ascii_lowercase().as_str() {
-            "list" => Some(Self::List),
-            "csv" => Some(Self::Csv),
-            "column" => Some(Self::Column),
-            "line" => Some(Self::Line),
-            _ => None,
-        }
-    }
 }
 
 /// Renders `v` for `column`/`line` mode display: reuses

@@ -36,6 +36,14 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
   echoes prompts, matching `sqlite3`. `src/bin/sqlite-rs/readline/` and
   `src/sys/termios.rs` deleted — the crate has no `unsafe` left; db-cli
   is an optional dependency behind the default `cli` feature (#14).
+- The REPL loop is db-cli's (`db_cli::Repl`, v0.4.1): sqlite-rs is now a
+  `ReplHandler` — tokenizer-backed statement completion and splitting,
+  execution on the shared `Pager`, `list`/`csv`/`column`/`line` rendering
+  via `mode.rs`, plus `.tables .schema .indices .databases .dump
+  .version`. `.help .quit .exit .mode .headers .color` are db-cli
+  built-ins; `.mode` now also accepts `table`/`json` (its usage message
+  changed accordingly). Errors still go to stderr as `Error: …`. `.mode`
+  and `.headers` are silent on success, like `sqlite3` (#15).
 
 ## [0.18.10] - 2026-08-31
 

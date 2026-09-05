@@ -29,52 +29,294 @@
 //! loading/saving is best-effort — a missing `$HOME`/`$XDG_STATE_HOME`
 //! or an unwritable history file never blocks the session.
 //!
-//! Dot-commands (#478, #495): `.quit`/`.exit`/`.tables` plus `.help`,
-//! `.version`, `.schema`, `.dump`, `.headers`, `.mode`, `.databases`,
-//! `.indices`, `.color` — all `sqlite3`-style prefix-matched (`.t`..`.tables`,
-//! `.q`..`.quit`, etc.), dispatched from the `if let Some(rest) =
-//! trimmed.strip_prefix('.')` block below. `.headers`/`.mode` flip
-//! `ReplState` fields the query-result printer (`mode.rs::print_rows`)
-//! reads on every subsequent `SELECT`; `.color` flips
-//! [`db_cli::Readline::set_color`] instead, since it only
-//! affects the in-progress input line, not query output; the rest read
-//! from the database (via `dot_commands.rs`) and print immediately.
+//! The loop itself is db-cli's (`db_cli::Repl` + `run_repl_with_editor`,
+//! t-rust-db/sqlite-rs#15): statement buffering, the built-in
+//! dot-commands (`.help`, `.quit`/`.exit`, `.mode`, `.headers`, `.color`)
+//! and stdout/stderr routing live there; this file is the
+//! [`db_cli::ReplHandler`] that plugs sqlite-rs in — statement
+//! completion via the real tokenizer (`ends_with_semicolon` /
+//! `split_statements`), execution against the shared `Pager`, rendering
+//! via `mode.rs::print_rows` (the byte-oriented `list`/`csv`/`column`/
+//! `line` renderers) or db-cli's own `table`/`json`, and the engine
+//! dot-commands (#478, #495: `.tables`, `.version`, `.schema`, `.dump`,
+//! `.databases`, `.indices`), all `sqlite3`-style prefix-matched.
 
 use std::cell::RefCell;
-use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::rc::Rc;
 
+use db_cli::{run_repl_with_editor, OutputMode, Readline, Repl, ReplHandler, ReplOptions};
 use sqlite_rs::btree::TableCursor;
 use sqlite_rs::codegen::{
     compile_statement, leading_keywords, output_column_names, resolve_from_table_schema,
 };
 use sqlite_rs::dump;
+use sqlite_rs::header::DatabaseHeader;
+use sqlite_rs::pager::Pager;
 use sqlite_rs::parser::{ends_with_semicolon, parse_select, split_statements, ParseOutcome};
-use sqlite_rs::schema::{read_schema, read_views};
+use sqlite_rs::record::Value;
+use sqlite_rs::schema::{read_schema, read_views, TableSchema};
 use sqlite_rs::vdbe::{execute_transaction_step, execute_with_db};
 use sqlite_rs::vfs::{PageSource, UnixVfs};
 
+use crate::completion::SchemaCompleter;
 use crate::dot_commands::{
-    print_databases, print_dump, print_help, print_indices, print_schema, print_version,
+    print_databases, print_dump, print_indices, print_schema, print_version, HELP_ENTRIES,
 };
-use crate::mode::{print_rows, OutputMode};
+use crate::highlight::SqlHighlighter;
+use crate::mode::print_rows;
 use crate::pragma_query::{execute_pragma_query, parse_pragma_query};
 use crate::query::{compile_select_program, write_list_row, SelectOutcome};
-use db_cli::{Readline, ReadlineError};
-
-use crate::completion::SchemaCompleter;
-use crate::highlight::SqlHighlighter;
 use crate::tables::{list_table_and_view_names, print_table_names};
 
-/// Session state that persists across statements within one `run_repl`
-/// call: `.mode`/`.headers` (#495) alongside the pre-existing
-/// `autocommit` flag threaded through the transaction-control machinery.
-struct ReplState {
-    mode: OutputMode,
-    headers: bool,
+/// One statement's printable result.
+pub enum ReplOutput {
+    /// A write or control statement with nothing to show.
+    Nothing,
+    /// A `SELECT`-shaped result set: column labels (see [`derive_headers`])
+    /// and decoded rows, rendered per `.mode`/`.headers`.
+    Rows {
+        columns: Vec<String>,
+        rows: Vec<Vec<Value>>,
+    },
+    /// CLI-layer pragma rows (ADR-0029), always `list`-rendered as before.
+    Text(Vec<Vec<String>>),
+}
+
+/// sqlite-rs's [`ReplHandler`]: the session state that used to be
+/// `ReplState` (the shared `Pager`, the autocommit flag) plus the schema
+/// snapshot the tab completer reads.
+struct SqliteHandler {
+    pager: Rc<RefCell<Pager>>,
+    header: DatabaseHeader,
+    db_path: PathBuf,
     autocommit: bool,
+    completion_schemas: Rc<RefCell<Vec<TableSchema>>>,
+}
+
+impl SqliteHandler {
+    /// Best-effort: a schema read error just means "no completion
+    /// candidates from the schema", never a fatal error for the REPL.
+    fn refresh_completion_schemas(&self) {
+        let borrowed = self.pager.borrow();
+        let mut cursor = TableCursor::new(&*borrowed, &self.header, 1);
+        *self.completion_schemas.borrow_mut() =
+            read_schema(&mut cursor, self.header.text_encoding).unwrap_or_default();
+    }
+
+    fn schemas_and_views(
+        &self,
+    ) -> Result<(Vec<TableSchema>, Vec<sqlite_rs::schema::ViewSchema>), String> {
+        let borrowed = self.pager.borrow();
+        let mut schema_cursor = TableCursor::new(&*borrowed, &self.header, 1);
+        let schemas = read_schema(&mut schema_cursor, self.header.text_encoding)
+            .map_err(|e| e.to_string())?;
+        let mut view_cursor = TableCursor::new(&*borrowed, &self.header, 1);
+        let views =
+            read_views(&mut view_cursor, self.header.text_encoding).map_err(|e| e.to_string())?;
+        Ok((schemas, views))
+    }
+
+    /// Runs one already-complete statement against the session's shared
+    /// `pager`. Errors come back as the message only — db-cli prefixes
+    /// them with `Error: ` (see [`ReplHandler::error_line`]) and sends them
+    /// to stderr — and never end the session, matching `sqlite3`.
+    fn run_one_statement(&mut self, stmt: &str) -> Result<ReplOutput, String> {
+        // #489: checked before anything else, same as `query.rs`'s
+        // `run_query` — a `PRAGMA` outside these 9 recognized names (e.g.
+        // `journal_mode`) falls through unrecognized and hits the ordinary
+        // `compile_statement` write-pragma path below, unchanged.
+        if let Some(pragma) = parse_pragma_query(stmt) {
+            let (schemas, views) = self.schemas_and_views()?;
+            let rows = execute_pragma_query(&pragma, &schemas, &views, &self.header, &self.db_path)
+                .map_err(|e| e.to_string())?;
+            return Ok(ReplOutput::Text(rows));
+        }
+
+        let (schemas, views) = self.schemas_and_views()?;
+        let stats_by_table = {
+            let borrowed = self.pager.borrow();
+            sqlite_rs::planner::load_stats(&*borrowed, &self.header, &schemas)
+        };
+
+        let keywords = leading_keywords(stmt);
+        let is_select = keywords.first().is_some_and(|kw| kw.as_str() == "SELECT");
+
+        if is_select {
+            let select = match parse_select(stmt) {
+                ParseOutcome::Accepted(select) => *select,
+                ParseOutcome::Unsupported { message, span } => {
+                    return Err(format!(
+                        "not yet supported (line {}, column {}): {message}",
+                        span.line, span.column
+                    ));
+                }
+                ParseOutcome::Invalid { message, span } => {
+                    return Err(format!(
+                        "syntax error (line {}, column {}): {message}",
+                        span.line, span.column
+                    ));
+                }
+            };
+            let program =
+                match compile_select_program(&select, false, &schemas, &views, &stats_by_table) {
+                    Ok(SelectOutcome::Program(p)) => p,
+                    // `eqp_mode` is always `false` above, so `Eqp` never comes back.
+                    Ok(SelectOutcome::Eqp(_)) => return Err("unexpected EQP output".to_string()),
+                    Err(e) => return Err(e.to_string()),
+                };
+            // Reads through the same shared `Pager` the write path uses
+            // (`Rc<RefCell<Pager>>` implements `PageSource`, ADR-0017) —
+            // an uncommitted write earlier in this same transaction must
+            // be visible here, not just what's on disk.
+            let source: Rc<dyn PageSource> = Rc::clone(&self.pager) as Rc<dyn PageSource>;
+            let columns = derive_headers(&select, &schemas);
+            let rows = execute_with_db(&program, source, self.header).map_err(|e| e.to_string())?;
+            return Ok(ReplOutput::Rows { columns, rows });
+        }
+
+        let program = compile_statement(stmt, &schemas, &views).map_err(|e| e.to_string())?;
+        let (rows, autocommit) = execute_transaction_step(
+            &program,
+            Rc::clone(&self.pager),
+            self.header,
+            self.autocommit,
+        )
+        .map_err(|e| e.to_string())?;
+        self.autocommit = autocommit;
+        // #645: a non-`SELECT` statement can still emit result rows (e.g.
+        // `PRAGMA synchronous`'s bare query form, or `PRAGMA
+        // integrity_check`) — render them like a `SELECT`'s. No column
+        // names to derive here (no `Select` AST), so `.headers on` renders
+        // a blank header line for these.
+        if rows.is_empty() {
+            Ok(ReplOutput::Nothing)
+        } else {
+            Ok(ReplOutput::Rows {
+                columns: Vec::new(),
+                rows,
+            })
+        }
+    }
+}
+
+/// Which built-in dot-commands db-cli documents itself, so `help_extra`
+/// doesn't list them twice.
+const DB_CLI_BUILTINS: &[&str] = &[".help", ".quit", ".exit", ".mode", ".headers", ".color"];
+
+impl ReplHandler for SqliteHandler {
+    type Output = ReplOutput;
+
+    fn execute(&mut self, input: &str) -> Result<ReplOutput, String> {
+        let result = self.run_one_statement(input);
+        // DDL may have changed what tab completion should offer.
+        self.refresh_completion_schemas();
+        result
+    }
+
+    fn format(&self, output: &ReplOutput, mode: OutputMode, headers: bool) -> String {
+        let bytes = match output {
+            ReplOutput::Nothing => return String::new(),
+            ReplOutput::Text(rows) => {
+                let mut out = Vec::new();
+                for row in rows {
+                    let rendered: Vec<Vec<u8>> =
+                        row.iter().map(|s| s.clone().into_bytes()).collect();
+                    // Writing into a Vec<u8> cannot fail.
+                    write_list_row(&mut out, &rendered).ok();
+                }
+                out
+            }
+            ReplOutput::Rows { columns, rows } => {
+                let local = match mode {
+                    OutputMode::List => crate::mode::OutputMode::List,
+                    OutputMode::Csv => crate::mode::OutputMode::Csv,
+                    OutputMode::Column => crate::mode::OutputMode::Column,
+                    OutputMode::Line => crate::mode::OutputMode::Line,
+                    // db-cli's own additions have no byte-oriented renderer
+                    // here; stringify the cells and let db-cli draw them.
+                    OutputMode::Table | OutputMode::Json => {
+                        let cells: Vec<Vec<String>> = rows
+                            .iter()
+                            .map(|r| r.iter().map(cell_string).collect())
+                            .collect();
+                        return db_cli::render(mode, columns, &cells, headers);
+                    }
+                };
+                let mut out = Vec::new();
+                print_rows(&mut out, local, headers, columns, rows).ok();
+                out
+            }
+        };
+        // The renderers terminate every line; db-cli's `println!` adds
+        // the last newline back. Lossy only for non-UTF-8 blob bytes in
+        // `list`/`csv` mode — a db-cli boundary (String, not bytes).
+        let text = String::from_utf8_lossy(&bytes);
+        text.strip_suffix('\n').unwrap_or(&text).to_string()
+    }
+
+    fn command(&mut self, name: &str, arg: &str) -> Option<Vec<String>> {
+        if name.is_empty() {
+            return None;
+        }
+        let arg = (!arg.is_empty()).then_some(arg);
+        // `sqlite3`-style prefix matching (`.t` .. `.tables`); the engine
+        // commands print to stdout themselves, so "handled, nothing more".
+        if "tables".starts_with(name) {
+            match list_table_and_view_names(
+                Rc::clone(&self.pager) as Rc<dyn PageSource>,
+                &self.header,
+                arg,
+            ) {
+                Ok(names) => print_table_names(&names),
+                Err(e) => eprintln!("Error: {e}"),
+            }
+        } else if "version".starts_with(name) {
+            print_version();
+        } else if "schema".starts_with(name) {
+            print_schema(&self.pager, &self.header, arg);
+        } else if "indices".starts_with(name) {
+            print_indices(&self.pager, &self.header, arg);
+        } else if "databases".starts_with(name) {
+            print_databases(&self.db_path);
+        } else if "dump".starts_with(name) {
+            print_dump(&self.db_path, arg);
+        } else {
+            return None;
+        }
+        Some(Vec::new())
+    }
+
+    fn help_extra(&self) -> Vec<String> {
+        HELP_ENTRIES
+            .iter()
+            .filter(|(cmd, _)| !DB_CLI_BUILTINS.iter().any(|b| cmd.starts_with(b)))
+            .map(|(cmd, desc)| format!("{cmd:<20}{desc}"))
+            .collect()
+    }
+
+    /// A `;` inside a string/blob literal never ends a statement early —
+    /// this goes through the real tokenizer, not `str::ends_with(';')`.
+    fn is_complete(&self, buffer: &str) -> bool {
+        ends_with_semicolon(buffer)
+    }
+
+    /// `BEGIN; INSERT …;` on one line runs as two statements.
+    fn statements(&self, buffer: &str) -> Vec<String> {
+        split_statements(buffer)
+    }
+
+    fn error_line(&self, message: &str) -> String {
+        format!("Error: {message}")
+    }
+}
+
+/// Renders `v` the way `mode.rs` does for `column`/`line` display.
+fn cell_string(v: &Value) -> String {
+    let mut scratch = Vec::new();
+    sqlite_rs::format::write_query_value(&mut scratch, v);
+    String::from_utf8_lossy(&scratch).into_owned()
 }
 
 pub fn run_repl(path: &Path) -> ExitCode {
@@ -85,147 +327,37 @@ pub fn run_repl(path: &Path) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let pager = Rc::new(RefCell::new(pager));
+    let completion_schemas = Rc::new(RefCell::new(Vec::new()));
+    let handler = SqliteHandler {
+        pager: Rc::new(RefCell::new(pager)),
+        header,
+        db_path: path.to_path_buf(),
+        autocommit: true,
+        completion_schemas: Rc::clone(&completion_schemas),
+    };
+    handler.refresh_completion_schemas();
 
     let mut editor = Readline::new();
     editor.set_highlighter(SqlHighlighter);
-    // Completion works against whatever schema is currently readable;
-    // the loop below refreshes this snapshot before every prompt.
-    let completion_schemas = Rc::new(RefCell::new(Vec::new()));
-    editor.set_completer(SchemaCompleter::new(Rc::clone(&completion_schemas)));
+    editor.set_completer(SchemaCompleter::new(completion_schemas));
+
+    // `sqlite3` starts in `list` mode with headers off.
+    let mut repl = Repl::new(handler);
+    repl.set_mode(OutputMode::List);
+
     let history_file = history_path();
-    if let Some(history_file) = &history_file {
-        // Best-effort: a fresh install has no history file yet, and
-        // that's not an error.
-        editor.load_history(history_file);
-    }
-    let mut state = ReplState {
-        mode: OutputMode::List,
-        headers: false,
-        autocommit: true,
+    let opts = ReplOptions {
+        prompt: "sqlite> ",
+        continuation_prompt: "   ...> ",
+        history_file: history_file.as_deref(),
     };
-    let mut buffer = String::new();
-
-    loop {
-        // Best-effort: a schema read error just means "no completion
-        // candidates from the schema this keystroke", never a fatal
-        // error for the REPL itself.
-        *completion_schemas.borrow_mut() = {
-            let borrowed = pager.borrow();
-            let mut schema_cursor = TableCursor::new(&*borrowed, &header, 1);
-            read_schema(&mut schema_cursor, header.text_encoding).unwrap_or_default()
-        };
-        let line = match editor.read_line(prompt_str(&buffer)) {
-            Ok(l) => l,
-            Err(ReadlineError::Eof) => break, // Ctrl-D, or piped input exhausted.
-            Err(ReadlineError::Interrupted) => {
-                // Ctrl-C: abandon the in-progress line/statement, same
-                // as `sqlite3`'s own shell, and start fresh.
-                buffer.clear();
-                continue;
-            }
-            Err(ReadlineError::Io(e)) => {
-                eprintln!("error: reading input: {e}");
-                break;
-            }
-        };
-        if !line.trim().is_empty() {
-            editor.add_history_entry(line.as_str());
+    match run_repl_with_editor(repl, editor, opts) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("error: reading input: {e}");
+            ExitCode::FAILURE
         }
-
-        if buffer.is_empty() {
-            let trimmed = line.trim();
-            if let Some(rest) = trimmed.strip_prefix('.') {
-                if trimmed == ".exit" {
-                    break;
-                }
-                let mut parts = rest.splitn(2, char::is_whitespace);
-                let cmd = parts.next().unwrap_or("");
-                let arg = parts.next().map(str::trim).filter(|s| !s.is_empty());
-
-                if !cmd.is_empty() && "quit".starts_with(cmd) {
-                    break;
-                }
-                if !cmd.is_empty() && "tables".starts_with(cmd) {
-                    match list_table_and_view_names(
-                        Rc::clone(&pager) as Rc<dyn PageSource>,
-                        &header,
-                        arg,
-                    ) {
-                        Ok(names) => print_table_names(&names),
-                        Err(e) => eprintln!("Error: {e}"),
-                    }
-                    continue;
-                }
-                if !cmd.is_empty() && "help".starts_with(cmd) {
-                    print_help();
-                    continue;
-                }
-                if !cmd.is_empty() && "version".starts_with(cmd) {
-                    print_version();
-                    continue;
-                }
-                if !cmd.is_empty() && "schema".starts_with(cmd) {
-                    print_schema(&pager, &header, arg);
-                    continue;
-                }
-                if !cmd.is_empty() && "indices".starts_with(cmd) {
-                    print_indices(&pager, &header, arg);
-                    continue;
-                }
-                if !cmd.is_empty() && "databases".starts_with(cmd) {
-                    print_databases(path);
-                    continue;
-                }
-                if !cmd.is_empty() && "dump".starts_with(cmd) {
-                    print_dump(path, arg);
-                    continue;
-                }
-                if !cmd.is_empty() && "headers".starts_with(cmd) {
-                    match arg.map(str::to_ascii_lowercase).as_deref() {
-                        Some("on") => state.headers = true,
-                        Some("off") => state.headers = false,
-                        _ => eprintln!("Error: usage: .headers on|off"),
-                    }
-                    continue;
-                }
-                if !cmd.is_empty() && "mode".starts_with(cmd) {
-                    match arg.and_then(OutputMode::parse) {
-                        Some(m) => state.mode = m,
-                        None => eprintln!("Error: usage: .mode csv|column|line|list"),
-                    }
-                    continue;
-                }
-                if !cmd.is_empty() && "color".starts_with(cmd) {
-                    match arg.map(str::to_ascii_lowercase).as_deref() {
-                        Some("on") => editor.set_color(true),
-                        Some("off") => editor.set_color(false),
-                        _ => eprintln!("Error: usage: .color on|off"),
-                    }
-                    continue;
-                }
-                eprintln!("Error: unknown command {trimmed:?}");
-                continue;
-            }
-        }
-
-        buffer.push_str(&line);
-        buffer.push('\n');
-        if !ends_with_semicolon(&buffer) {
-            continue;
-        }
-
-        for stmt in split_statements(&buffer) {
-            run_one_statement(&stmt, &pager, header, &mut state, path);
-        }
-        buffer.clear();
     }
-
-    if let Some(history_file) = &history_file {
-        editor.save_history(history_file);
-    }
-
-    ExitCode::SUCCESS
 }
 
 /// Where the REPL's history lives: `$XDG_STATE_HOME/sqlite-rs/history`
@@ -241,178 +373,6 @@ fn history_path() -> Option<PathBuf> {
     }
     let home = std::env::var_os("HOME")?;
     Some(PathBuf::from(home).join(".sqlite-rs_history"))
-}
-
-fn prompt_str(buffer: &str) -> &'static str {
-    if buffer.is_empty() {
-        "sqlite> "
-    } else {
-        "   ...> "
-    }
-}
-
-/// Runs one already-complete statement against the session's shared
-/// `pager`, printing rows (for a `SELECT`) or an `Error: ...` line to
-/// stderr on failure — never panics, never exits the loop, matching
-/// `sqlite3`'s own shell behavior of surviving a bad statement.
-fn run_one_statement(
-    stmt: &str,
-    pager: &Rc<RefCell<sqlite_rs::pager::Pager>>,
-    header: sqlite_rs::header::DatabaseHeader,
-    state: &mut ReplState,
-    db_path: &Path,
-) {
-    // #489: checked before anything else, same as `query.rs`'s
-    // `run_query` — a `PRAGMA` outside these 9 recognized names (e.g.
-    // `journal_mode`) falls through unrecognized and hits the ordinary
-    // `compile_statement` write-pragma path below, unchanged.
-    if let Some(pragma) = parse_pragma_query(stmt) {
-        let schemas = {
-            let borrowed = pager.borrow();
-            let mut schema_cursor = TableCursor::new(&*borrowed, &header, 1);
-            match read_schema(&mut schema_cursor, header.text_encoding) {
-                Ok(s) => s,
-                Err(e) => {
-                    eprintln!("Error: {e}");
-                    return;
-                }
-            }
-        };
-        let views = {
-            let borrowed = pager.borrow();
-            let mut view_cursor = TableCursor::new(&*borrowed, &header, 1);
-            match read_views(&mut view_cursor, header.text_encoding) {
-                Ok(v) => v,
-                Err(e) => {
-                    eprintln!("Error: {e}");
-                    return;
-                }
-            }
-        };
-        match execute_pragma_query(&pragma, &schemas, &views, &header, db_path) {
-            Ok(rows) => {
-                let mut stdout = io::BufWriter::new(io::stdout().lock());
-                for row in rows {
-                    let rendered: Vec<Vec<u8>> = row.into_iter().map(String::into_bytes).collect();
-                    if let Err(e) = write_list_row(&mut stdout, &rendered) {
-                        eprintln!("Error: {e}");
-                        return;
-                    }
-                }
-                stdout.flush().ok();
-            }
-            Err(e) => eprintln!("Error: {e}"),
-        }
-        return;
-    }
-
-    let schemas = {
-        let borrowed = pager.borrow();
-        let mut schema_cursor = TableCursor::new(&*borrowed, &header, 1);
-        match read_schema(&mut schema_cursor, header.text_encoding) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("Error: {e}");
-                return;
-            }
-        }
-    };
-    let views = {
-        let borrowed = pager.borrow();
-        let mut view_cursor = TableCursor::new(&*borrowed, &header, 1);
-        match read_views(&mut view_cursor, header.text_encoding) {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("Error: {e}");
-                return;
-            }
-        }
-    };
-    let stats_by_table = {
-        let borrowed = pager.borrow();
-        sqlite_rs::planner::load_stats(&*borrowed, &header, &schemas)
-    };
-
-    let keywords = leading_keywords(stmt);
-    let is_select = keywords.first().is_some_and(|kw| kw.as_str() == "SELECT");
-
-    if is_select {
-        let select = match parse_select(stmt) {
-            ParseOutcome::Accepted(select) => *select,
-            ParseOutcome::Unsupported { message, span } => {
-                eprintln!(
-                    "Error: not yet supported (line {}, column {}): {message}",
-                    span.line, span.column
-                );
-                return;
-            }
-            ParseOutcome::Invalid { message, span } => {
-                eprintln!(
-                    "Error: syntax error (line {}, column {}): {message}",
-                    span.line, span.column
-                );
-                return;
-            }
-        };
-        let program =
-            match compile_select_program(&select, false, &schemas, &views, &stats_by_table) {
-                Ok(SelectOutcome::Program(p)) => p,
-                // `eqp_mode` is always `false` above, so `Eqp` never comes back.
-                Ok(SelectOutcome::Eqp(_)) => unreachable!("eqp_mode was false"),
-                Err(e) => {
-                    eprintln!("Error: {e}");
-                    return;
-                }
-            };
-        // Reads through the same shared `Pager` the write path uses
-        // (`Rc<RefCell<Pager>>` implements `PageSource`, per
-        // `src/pager.rs`) — an uncommitted write earlier in this same
-        // transaction must be visible here, not just what's on disk.
-        let source: Rc<dyn PageSource> = Rc::clone(pager) as Rc<dyn PageSource>;
-        let columns = derive_headers(&select, &schemas);
-        match execute_with_db(&program, source, header) {
-            Ok(rows) => {
-                let mut stdout = io::BufWriter::new(io::stdout().lock());
-                if let Err(e) = print_rows(&mut stdout, state.mode, state.headers, &columns, &rows)
-                {
-                    eprintln!("Error: {e}");
-                    return;
-                }
-                stdout.flush().ok();
-            }
-            Err(e) => eprintln!("Error: {e}"),
-        }
-        return;
-    }
-
-    let program = match compile_statement(stmt, &schemas, &views) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("Error: {e}");
-            return;
-        }
-    };
-    match execute_transaction_step(&program, Rc::clone(pager), header, state.autocommit) {
-        Ok((rows, ac)) => {
-            state.autocommit = ac;
-            // #645: a non-`SELECT` statement can still emit result rows
-            // (e.g. `PRAGMA synchronous`'s bare query form, or
-            // `PRAGMA integrity_check`) — print them the same way the
-            // `SELECT` branch above does, rather than silently dropping
-            // them as this branch did before. No column names to derive
-            // here (this path has no `Select` AST to read them from),
-            // so `.headers on` renders a blank header line for these.
-            if !rows.is_empty() {
-                let mut stdout = io::BufWriter::new(io::stdout().lock());
-                if let Err(e) = print_rows(&mut stdout, state.mode, state.headers, &[], &rows) {
-                    eprintln!("Error: {e}");
-                    return;
-                }
-                stdout.flush().ok();
-            }
-        }
-        Err(e) => eprintln!("Error: {e}"),
-    }
 }
 
 /// `.headers on`'s column labels for `select`'s result set: for a

@@ -18,7 +18,7 @@ db-storage = { version = "0.4.1", git = "https://github.com/t-rust-db/db-storage
 # CLI-only (readline, history, REPL loop, output modes — t-rust-db/sqlite-rs#14/#15):
 # optional so library consumers with `default-features = false` never pull
 # it (or its libc/dirs closure) in.
-db-cli = { version = "0.3.0", git = "https://github.com/t-rust-db/db-cli", tag = "v0.3.0", optional = true }
+db-cli = { version = "0.4.1", git = "https://github.com/t-rust-db/db-cli", tag = "v0.4.1", optional = true }
 
 [features]
 default = ["cli"]

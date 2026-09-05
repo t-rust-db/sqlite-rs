@@ -27,7 +27,7 @@ use crate::tables::print_table_names;
 /// `.tables`/`.quit`/`.exit` (#478) included, even though their
 /// handlers live in `repl.rs`, so `.help` stays the one place that
 /// enumerates the whole surface.
-const HELP_ENTRIES: &[(&str, &str)] = &[
+pub(crate) const HELP_ENTRIES: &[(&str, &str)] = &[
     (".color on|off", "Turn syntax-highlighted input on or off"),
     (".databases", "List attached databases"),
     (".dump [TABLE]", "Render the database (or one TABLE) as SQL"),
@@ -47,12 +47,6 @@ const HELP_ENTRIES: &[(&str, &str)] = &[
     (".tables [PATTERN]", "List names of tables matching PATTERN"),
     (".version", "Show sqlite-rs and SQLite version info"),
 ];
-
-pub(crate) fn print_help() {
-    for (cmd, desc) in HELP_ENTRIES {
-        println!("{cmd:<20}{desc}");
-    }
-}
 
 /// The SQLite on-disk file-format version this crate targets/emulates —
 /// the same 3.53.4 pin recorded in `Cargo.toml`'s `[package.metadata.oracle]`
