@@ -52,6 +52,11 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
   back-ported to Lab271 (Lab271/sqlite-rs#701/#702, db-core ADR 0009).
   Grammar drift tooling (`sqlite.ebnf`, `make check-grammar-drift`) stays
   here for now (#17).
+- `sqlite_rs::record::Value` (with `TextEncoding`, `Collation`,
+  `compare_text`, `format::format_real`) is now `db_core::value::*`,
+  re-exported through db-storage v0.5.0 (db-core ADR 0010): the same
+  type `db_core::vm::row` executes over, so the VDBE cursor adapter (#18)
+  needs no per-cell conversion. Pins: db-storage v0.5.0, db-core v0.35.0.
 
 ## [0.18.10] - 2026-08-31
 

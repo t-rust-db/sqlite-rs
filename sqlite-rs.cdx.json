@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-05T12:06:27.000000000Z",
+    "timestamp": "2026-09-05T12:22:26.000000000Z",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -89,9 +89,9 @@
     },
     {
       "type": "library",
-      "bom-ref": "git+https://github.com/t-rust-db/db-core?tag=v0.34.1#0.34.1",
+      "bom-ref": "git+https://github.com/t-rust-db/db-core?tag=v0.35.0#0.35.0",
       "name": "db-core",
-      "version": "0.34.1",
+      "version": "0.35.0",
       "description": "Shared SQL language/execution layer for t-rust-db: types, expr, parser, join, vm, codegen, emit",
       "scope": "required",
       "licenses": [
@@ -99,7 +99,7 @@
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/db-core@0.34.1?vcs_url=git%2Bhttps://github.com/t-rust-db/db-core%40ab7232f27bc7193ee166196d167223e5d42c5e93",
+      "purl": "pkg:cargo/db-core@0.35.0?vcs_url=git%2Bhttps://github.com/t-rust-db/db-core%40a3f9fb5a55f7027122861a60d9bd81baf09709ae",
       "externalReferences": [
         {
           "type": "vcs",
@@ -109,11 +109,11 @@
     },
     {
       "type": "library",
-      "bom-ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#0.4.1",
+      "bom-ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.5.0#0.5.0",
       "name": "db-storage",
-      "version": "0.4.1",
+      "version": "0.5.0",
       "scope": "required",
-      "purl": "pkg:cargo/db-storage@0.4.1?vcs_url=git%2Bhttps://github.com/t-rust-db/db-storage%407ea53e48be26bdcc677df8c5739f8eb3da050ecf"
+      "purl": "pkg:cargo/db-storage@0.5.0?vcs_url=git%2Bhttps://github.com/t-rust-db/db-storage%4036031487fc179725624591e99f4306eda9a51532"
     },
     {
       "type": "library",
@@ -395,11 +395,12 @@
       ]
     },
     {
-      "ref": "git+https://github.com/t-rust-db/db-core?tag=v0.34.1#0.34.1"
+      "ref": "git+https://github.com/t-rust-db/db-core?tag=v0.35.0#0.35.0"
     },
     {
-      "ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#0.4.1",
+      "ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.5.0#0.5.0",
       "dependsOn": [
+        "git+https://github.com/t-rust-db/db-core?tag=v0.35.0#0.35.0",
         "registry+https://github.com/rust-lang/crates.io-index#memmap2@0.9.11",
         "registry+https://github.com/rust-lang/crates.io-index#ruzstd@0.7.3"
       ]
@@ -408,8 +409,8 @@
       "ref": "path+file://.#sqlite-rs@0.18.10",
       "dependsOn": [
         "git+https://github.com/t-rust-db/db-cli?tag=v0.4.1#0.4.1",
-        "git+https://github.com/t-rust-db/db-core?tag=v0.34.1#0.34.1",
-        "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#0.4.1"
+        "git+https://github.com/t-rust-db/db-core?tag=v0.35.0#0.35.0",
+        "git+https://github.com/t-rust-db/db-storage?tag=v0.5.0#0.5.0"
       ]
     },
     {
