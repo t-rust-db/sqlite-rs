@@ -58,6 +58,7 @@ where
         name,
         args,
         distinct,
+        over: None,
     } = &expr.kind
     else {
         return Ok(false);
@@ -209,6 +210,7 @@ where
         name,
         args,
         distinct,
+        over: None,
     } = &expr.kind
     else {
         return Ok(false);

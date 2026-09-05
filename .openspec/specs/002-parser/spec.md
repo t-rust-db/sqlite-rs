@@ -139,7 +139,7 @@ VALUES VIEW VIRTUAL WHEN WHERE WINDOW WITH WITHOUT
 
 ### Tokenizer Implementation
 
-Real definitions live in `src/parser/tokenizer.rs`; this is the shape, not
+Real definitions live in `db-core:src/parser/row/tokenizer.rs`; this is the shape, not
 a copy — consult the source for the full variant list and its doc comments.
 
 ```rust
@@ -301,7 +301,7 @@ unary_op
 
 ## AST Data Structures
 
-Real definitions live in `src/parser/ast.rs`, which is heavily
+Real definitions live in `db-core:src/parser/row/ast.rs`, which is heavily
 doc-commented; this is the shape, not a copy.
 
 ```rust
@@ -376,7 +376,7 @@ design:
 
 The tokenizer MUST convert SQL text into a stream of tokens. Each token MUST carry source location for error reporting.
 
-**Implementation:** `src/parser/tokenizer.rs`
+**Implementation:** `db-core:src/parser/row/tokenizer.rs`
 
 #### Scenario: Tokenize SELECT
 
@@ -384,7 +384,7 @@ The tokenizer MUST convert SQL text into a stream of tokens. Each token MUST car
 - WHEN tokenized
 - THEN tokens: `[Select, Identifier("a"), Comma, Identifier("b"), From, Identifier("t"), Where, Identifier("x"), Gt, Integer(10)]`
 
-**Tests:** `src/parser/tokenizer.rs::test_tokenize_select`
+**Tests:** `db-core:src/parser/row/tokenizer.rs::test_tokenize_select`
 
 #### Scenario: Tokenize string literals
 
@@ -392,7 +392,7 @@ The tokenizer MUST convert SQL text into a stream of tokens. Each token MUST car
 - WHEN tokenized
 - THEN one String token with value `hello'world`
 
-**Tests:** `src/parser/tokenizer.rs::test_tokenize_string_literal_escaping`
+**Tests:** `db-core:src/parser/row/tokenizer.rs::test_tokenize_string_literal_escaping`
 
 #### Scenario: Tokenize blob literal
 
@@ -400,7 +400,7 @@ The tokenizer MUST convert SQL text into a stream of tokens. Each token MUST car
 - WHEN tokenized
 - THEN one Blob token with bytes `[72, 69, 76, 76, 79]` ("HELLO")
 
-**Tests:** `src/parser/tokenizer.rs::test_tokenize_blob_literal`
+**Tests:** `db-core:src/parser/row/tokenizer.rs::test_tokenize_blob_literal`
 
 #### Scenario: Tokenize parameters
 
@@ -408,13 +408,13 @@ The tokenizer MUST convert SQL text into a stream of tokens. Each token MUST car
 - WHEN tokenized
 - THEN five Param tokens with appropriate kinds
 
-**Tests:** `src/parser/tokenizer.rs::test_tokenize_parameters`
+**Tests:** `db-core:src/parser/row/tokenizer.rs::test_tokenize_parameters`
 
 ### Requirement 2: Grammar Compatibility [MUST]
 
 The parser MUST accept all SQL that SQLite accepts, and reject all SQL that SQLite rejects.
 
-**Implementation:** `src/parser/grammar.rs` (hand-written recursive descent covering SELECT core, DML, core DDL, transactions, PRAGMA and ANALYZE; a pomelo-generated grammar per spike 006 is future work — Requirement 6)
+**Implementation:** `db-core:src/parser/row/grammar.rs` (hand-written recursive descent covering SELECT core, DML, core DDL, transactions, PRAGMA and ANALYZE; a pomelo-generated grammar per spike 006 is future work — Requirement 6)
 
 #### Scenario: Accept valid SELECT
 
@@ -446,7 +446,7 @@ The parser MUST accept all SQL that SQLite accepts, and reject all SQL that SQLi
 - WHEN parsed
 - THEN parse returns `Unsupported` (not `Invalid`) naming the window-function construct — the same not-yet-implemented-but-recognized pattern as compound SELECT's deferred `INTERSECT`/`EXCEPT`
 
-**Tests:** `tests/unit/parser.rs::test_unsupported_window_function`
+**Tests:** `tests/unit/parser.rs::test_window_function_parses_but_frames_are_unsupported`
 
 #### Scenario: Reject trailing comma
 
@@ -526,7 +526,7 @@ performs the extraction; `make extract-sql-corpus` regenerates it offline.
 
 The AST MUST represent all SQLite SQL constructs without loss of information.
 
-**Implementation:** `src/parser/ast.rs`, `src/parser/printer.rs` (roundtrip)
+**Implementation:** `db-core:src/parser/row/ast.rs`, `db-core:src/parser/row/printer.rs` (roundtrip)
 
 #### Scenario: Preserve column aliases
 
@@ -562,7 +562,7 @@ The AST MUST represent all SQLite SQL constructs without loss of information.
   `DropView` AST node, and printing it via `Display` and reparsing MUST
   reproduce an equal AST
 
-**Implementation:** `src/parser/ast.rs::CreateView`, `src/parser/ast.rs::DropView`, `src/parser/grammar.rs::Parser::parse_create_view_stmt`, `src/parser/grammar.rs::Parser::parse_drop_view_stmt`
+**Implementation:** `db-core:src/parser/row/ast.rs::CreateView`, `db-core:src/parser/row/ast.rs::DropView`, `db-core:src/parser/row/grammar.rs::Parser::parse_create_view_stmt`, `db-core:src/parser/row/grammar.rs::Parser::parse_drop_view_stmt`
 
 **Tests:** `tests/unit/ddl_parser.rs::test_accept_create_view_simple`, `tests/unit/ddl_parser.rs::test_accept_create_view_with_column_list`, `tests/unit/ddl_parser.rs::test_accept_create_view_if_not_exists`, `tests/unit/ddl_parser.rs::test_printer_roundtrip_create_view`, `tests/unit/ddl_parser.rs::test_accept_drop_view`, `tests/unit/ddl_parser.rs::test_accept_drop_view_if_exists`
 
@@ -570,7 +570,7 @@ The AST MUST represent all SQLite SQL constructs without loss of information.
 
 Parse errors SHOULD include source location and helpful context.
 
-**Implementation:** `src/parser/error.rs`
+**Implementation:** `db-core:src/parser/row/error.rs`
 
 #### Scenario: Error on unexpected token
 
@@ -584,7 +584,7 @@ Parse errors SHOULD include source location and helpful context.
 
 The Tier 0 minimal DDL reader (used to decode `sqlite_master` for the READ CORE) MUST NOT depend on the full parser. It extracts table names, column names, declared types, and WITHOUT ROWID / STRICT markers from DDL text — nothing more.
 
-**Implementation:** `db-storage:src/row/schema/ddl_reader.rs` (not under `src/parser/`)
+**Implementation:** `db-storage:src/row/schema/ddl_reader.rs` (not under `db-core:src/parser/row/`)
 
 **Tests:** inline `#[cfg(test)]` in `db-storage:src/row/schema/ddl_reader.rs`
 
@@ -594,7 +594,7 @@ The Tier 0 minimal DDL reader (used to decode `sqlite_master` for the READ CORE)
 - WHEN sqlite-rs opens a database and dumps its rows
 - THEN schema decoding MUST still work via the minimal DDL reader
 
-`db-storage:src/row/schema/ddl_reader.rs` has zero `use` of any `src/parser/` item (verified). No Cargo feature flag exists yet to gate the parser out, so the feature-gated-build half of this scenario remains unverified; no automated test backs it.
+`db-storage:src/row/schema/ddl_reader.rs` has zero `use` of any `db-core:src/parser/row/` item (verified). No Cargo feature flag exists yet to gate the parser out, so the feature-gated-build half of this scenario remains unverified; no automated test backs it.
 
 #### Scenario: Tolerate unparseable DDL
 
@@ -608,7 +608,7 @@ The Tier 0 minimal DDL reader (used to decode `sqlite_master` for the READ CORE)
 
 The hand-written recursive-descent parser MAY be replaced by a pomelo-generated one (the Decision above; spike 006, #57). If it is, the pomelo grammar SHOULD be a near-1:1 transliteration of SQLite's `parse.y`, and the swap MUST NOT change the AST or diagnostics contract.
 
-**Implementation:** `src/parser/grammar.rs` (planned) — the swap would replace this file's hand-written recursive descent; not yet started.
+**Implementation:** `db-core:src/parser/row/grammar.rs` (planned) — the swap would replace this file's hand-written recursive descent; not yet started.
 
 #### Scenario: Grammar parity
 

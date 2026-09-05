@@ -29,9 +29,23 @@
 
 pub mod codegen;
 pub mod dump;
-pub mod parser;
 pub mod planner;
 pub mod vdbe;
+
+/// SQL tokenizer, grammar, AST and printer — re-exported from
+/// `db_core::parser::row` (t-rust-db/sqlite-rs#17), the port of this
+/// crate's own parser (db-core ADR 0005/0009). Every
+/// `crate::parser::*` path keeps resolving; `tokenizer::Span` is
+/// re-homed from `db_core::parser::Span` so that path holds too.
+pub mod parser {
+    pub use db_core::parser::row::*;
+
+    /// Tokenizer plus `Span`, which db-core keeps one level up.
+    pub mod tokenizer {
+        pub use db_core::parser::row::tokenizer::*;
+        pub use db_core::parser::Span;
+    }
+}
 
 /// Virtual filesystem layer — re-exported from `db_storage::row::vfs`
 /// (t-rust-db/sqlite-rs#2). The private copy this crate used to carry was

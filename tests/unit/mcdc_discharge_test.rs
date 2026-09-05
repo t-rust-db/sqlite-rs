@@ -33,11 +33,10 @@ use std::fs;
 /// Mirrors the Makefile's `MCDC_FILES` — keep in sync (there is no
 /// programmatic way to share a Makefile variable with a Rust test).
 /// `src/btree/**` and `src/record/encode.rs` left for db-storage
-/// (t-rust-db/sqlite-rs#4/#6) and are that crate's obligations now.
+/// (t-rust-db/sqlite-rs#4/#6), `src/parser/{grammar,tokenizer}.rs` for
+/// db-core (#17); they are those crates' obligations now.
 const MCDC_FILES: &[&str] = &[
     "src/vdbe/functions.rs",
-    "src/parser/grammar.rs",
-    "src/parser/tokenizer.rs",
     "src/vdbe/exec.rs",
     "src/vdbe/program.rs",
     "src/vdbe/control.rs",

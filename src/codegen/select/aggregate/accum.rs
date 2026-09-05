@@ -36,6 +36,7 @@ pub(in crate::codegen::select) fn classify_aggregate(
         name,
         args,
         distinct,
+        over: None,
     } = &expr.kind
     else {
         return Err(CodegenError::Unsupported {

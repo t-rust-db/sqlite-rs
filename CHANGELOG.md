@@ -44,6 +44,14 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
   built-ins; `.mode` now also accepts `table`/`json` (its usage message
   changed accordingly). Errors still go to stderr as `Error: …`. `.mode`
   and `.headers` are silent on success, like `sqlite3` (#15).
+- The parser (tokenizer, grammar, AST, printer; 7,361 lines) is
+  db-core's `parser::row` (v0.30.0, feature `parser-row`), re-exported as
+  `sqlite_rs::parser` with `tokenizer::Span` re-homed. db-core's copy is
+  a strict superset: inline `OVER (…)` window functions now parse (the
+  planner still rejects them) and `KEY` is a bare identifier — both being
+  back-ported to Lab271 (Lab271/sqlite-rs#701/#702, db-core ADR 0009).
+  Grammar drift tooling (`sqlite.ebnf`, `make check-grammar-drift`) stays
+  here for now (#17).
 
 ## [0.18.10] - 2026-08-31
 

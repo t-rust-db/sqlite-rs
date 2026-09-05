@@ -44,10 +44,10 @@ dispatched to a dedicated codegen path.
   named index's owning table) is out of scope for this MVP and MUST
   report `Unsupported` rather than `Invalid` — it is syntactically valid
   SQL this parser doesn't yet implement, mirroring the `PRAGMA
-  journal_mode` precedent (`src/parser/grammar.rs:952`).
+  journal_mode` precedent (`db-core:src/parser/row/grammar.rs:952`).
 
-**Implementation:** `src/parser/grammar.rs::parse_analyze_stmt`,
-`src/parser/ast.rs::Analyze`, `src/codegen/analyze.rs::compile_analyze`
+**Implementation:** `db-core:src/parser/row/grammar.rs::parse_analyze_stmt`,
+`db-core:src/parser/row/ast.rs::Analyze`, `src/codegen/analyze.rs::compile_analyze`
 
 #### Scenario: Bare ANALYZE populates stats for every table
 

@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: bench-compile-path help test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures fixtures-bench bench bench-cli bench-status bench-point-lookup extract-sql-corpus test-corpus test-parity test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
+.PHONY: clean bench-compile-path help test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures fixtures-bench bench bench-cli bench-status bench-point-lookup extract-sql-corpus test-corpus test-parity test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
 
 # Qualified-subset gate (issue #23). Boundary policy:
 #   - Tier 0 core (vfs, pager, header, record, btree, schema) now lives in
@@ -94,10 +94,10 @@ test-tiers: ## Run the tier conformance suite standalone (tier0..tier3 — see .
 # obligations land: btree (#52), then vdbe/functions, parser/grammar,
 # parser/tokenizer, vdbe/exec, record/encode (#368), then vdbe/program +
 # vdbe/control (opcode dispatch, fix/mcdc-scope).
-# src/btree/** and src/record/encode.rs left for db-storage (t-rust-db/sqlite-rs#4/#6);
-# their obligations are now that crate's to track.
-MCDC_FILES := src/vdbe/functions.rs src/parser/grammar.rs src/parser/tokenizer.rs \
-	src/vdbe/exec.rs \
+# src/btree/** and src/record/encode.rs left for db-storage (t-rust-db/sqlite-rs#4/#6),
+# src/parser/{grammar,tokenizer}.rs for db-core (#17); their obligations are
+# now those crates' to track.
+MCDC_FILES := src/vdbe/functions.rs src/vdbe/exec.rs \
 	src/vdbe/program.rs src/vdbe/control.rs
 
 # Committed obligations snapshot (tests/mcdc/obligations.json), analogous
@@ -282,6 +282,14 @@ silent-swallow: ## Robustness audit: count error-discarding patterns in src/ (#3
 	@echo ".unwrap_or(...)     (fallible call papered over with a default)"
 	@grep -rn "\.unwrap_or" src/ $(if $(VERBOSE),,| wc -l | sed 's/^/  /') || true
 
+clean: ## Remove everything generated or compiled: target/ (incl. bench fixtures, coverage, gate caches), spike/fuzz targets, vendor/, docs/book, mutants.out*, __pycache__, stray *.db-shm, Cargo.lock.before-update
+	cargo clean
+	@for d in tests/spike/*/ tests/fuzz; do [ -f "$$d/Cargo.toml" ] && (cd "$$d" && cargo clean 2>/dev/null) || true; done
+	rm -rf vendor docs/book Cargo.lock.before-update
+	find . -type d \( -name 'mutants.out*' -o -name '__pycache__' \) -prune -exec rm -rf {} +
+	find . -type f \( -name '*.db-shm' -o -name '*.pyc' -o -name '*.rs.bk' \) -not -path './target/*' -delete
+	@echo "clean: build outputs, generated fixtures and caches removed (committed fixtures, SBOMs and lockfiles kept)"
+
 version: ## Print the crate's current version (Cargo.toml [package].version)
 	@sed -n 's/^version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1
 
@@ -292,8 +300,8 @@ LAB271_REMOTE ?= lab271
 LAB271_URL ?= https://github.com/Lab271/sqlite-rs.git
 # Paths already repointed at db-storage/db-core/db-cli (ADR-0039): Lab271's
 # changes there no longer apply here (apply them in db-storage instead).
-# Grows as #15-#19 land.
-LAB271_EXCLUDE := src/vfs.rs src/vfs src/sys.rs src/sys src/bin/sqlite-rs/readline.rs src/bin/sqlite-rs/readline src/pager.rs src/pager src/header.rs src/record.rs src/record src/btree.rs src/btree src/schema.rs src/schema src/format.rs src/integrity.rs
+# Grows as #18-#19 land.
+LAB271_EXCLUDE := src/vfs.rs src/vfs src/sys.rs src/sys src/parser.rs src/parser src/bin/sqlite-rs/readline.rs src/bin/sqlite-rs/readline src/pager.rs src/pager src/header.rs src/record.rs src/record src/btree.rs src/btree src/schema.rs src/schema src/format.rs src/integrity.rs
 
 sync-lab271: ## Fetch Lab271/sqlite-rs main and show the delta to fold in (ADR-0039; apply with `make sync-lab271 APPLY=1`)
 	@git remote get-url $(LAB271_REMOTE) >/dev/null 2>&1 || git remote add $(LAB271_REMOTE) $(LAB271_URL)

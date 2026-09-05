@@ -251,7 +251,18 @@ pub(crate) fn compile_value(
             Ok(r)
         }
 
-        ExprKind::FunctionCall { name, args, .. } => {
+        ExprKind::FunctionCall {
+            name, args, over, ..
+        } => {
+            // The parser (db-core's `parser::row`, #17) accepts inline
+            // `OVER (...)`; the planner has no window pass yet (V9), and
+            // compiling the call as a plain scalar/aggregate would return
+            // wrong rows silently — refuse instead.
+            if over.is_some() {
+                return Err(CodegenError::Unsupported {
+                    reason: "window functions (OVER) not yet supported".to_string(),
+                });
+            }
             // Aggregates need a grouping/accumulator pass this V2
             // compiler doesn't have. Rejecting them is not just a
             // missing-feature guard: compiling one as an ordinary

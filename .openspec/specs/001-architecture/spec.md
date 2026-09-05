@@ -83,7 +83,7 @@ pass: column references resolve during codegen via `Scope` in
 `src/codegen/expr.rs`, against the schema catalog, so the parser produces a
 syntactic AST rather than an analyzed one.
 
-**Implementation:** `src/parser/`
+**Implementation:** `db-core:src/parser/row/`
 
 **Estimated lines:** ~8,000
 
@@ -327,7 +327,7 @@ sqlite-rs MUST read and write files byte-compatible with SQLite 3.x.
 
 Each layer MUST communicate only through its defined interface. No layer SHALL reach into another layer's internals.
 
-**Implementation:** `db-storage:src/row/vfs/`, `db-storage:src/row/pager/`, `db-storage:src/row/btree/`, `src/vdbe/`, `src/codegen/`, `src/parser/`
+**Implementation:** `db-storage:src/row/vfs/`, `db-storage:src/row/pager/`, `db-storage:src/row/btree/`, `src/vdbe/`, `src/codegen/`, `db-core:src/parser/row/`
 
 #### Scenario: B-tree does not know SQL
 
