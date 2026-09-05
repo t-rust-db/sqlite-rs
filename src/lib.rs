@@ -18,13 +18,12 @@
 // The VFS used to need a scoped `#![allow(unsafe_code)]` for raw
 // `fcntl`/`mmap`/`fork` calls (#50), then went unsafe-free entirely under
 // `nix`/`std` (#66). Vendoring `nix`'s `fcntl`/`termios` FFI (#563)
-// reintroduced one, deliberately narrow, carve-out: `src/sys/` — see
-// `.openspec/adr/0031-vendor-nix-subset.md`. The `fcntl` half left with the
-// VFS (now `db_storage::row::vfs`, t-rust-db/sqlite-rs#2); only
-// `src/sys/termios.rs` remains, until the CLI moves to db-cli (#14).
-// `deny` (rather than `forbid`) is what makes that local
-// `#![allow(unsafe_code)]` possible; every other module is still held to
-// zero `unsafe` by this crate-wide default.
+// reintroduced one, deliberately narrow, carve-out (`src/sys/`, see
+// `.openspec/adr/0031-vendor-nix-subset.md`) — which has since left this
+// crate entirely: `fcntl` with the VFS to db-storage (t-rust-db/sqlite-rs#2),
+// `termios` with the line editor to db-cli (#14). No module here allows
+// `unsafe` any more; `deny` is kept (rather than `forbid`) only so a future
+// carve-out has to be as explicit as those two were.
 #![deny(unsafe_code)]
 #![warn(missing_docs)]
 
@@ -32,7 +31,6 @@ pub mod codegen;
 pub mod dump;
 pub mod parser;
 pub mod planner;
-pub mod sys;
 pub mod vdbe;
 
 /// Virtual filesystem layer — re-exported from `db_storage::row::vfs`

@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-05T07:00:33.000000000Z",
+    "timestamp": "2026-09-05T07:18:53.000000000Z",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -13,7 +13,7 @@
     ],
     "component": {
       "type": "application",
-      "bom-ref": "path+file://.#0.18.10",
+      "bom-ref": "path+file://.#sqlite-rs@0.18.10",
       "name": "sqlite-rs",
       "version": "0.18.10",
       "description": "A binary-compatible Rust replication of SQLite",
@@ -37,28 +37,28 @@
       "components": [
         {
           "type": "library",
-          "bom-ref": "path+file://.#0.18.10 bin-target-0",
+          "bom-ref": "path+file://.#sqlite-rs@0.18.10 bin-target-0",
           "name": "sqlite_rs",
           "version": "0.18.10",
           "purl": "pkg:cargo/sqlite-rs@0.18.10?download_url=file://.#src/lib.rs"
         },
         {
           "type": "application",
-          "bom-ref": "path+file://.#0.18.10 bin-target-1",
+          "bom-ref": "path+file://.#sqlite-rs@0.18.10 bin-target-1",
           "name": "lock_probe",
           "version": "0.18.10",
           "purl": "pkg:cargo/sqlite-rs@0.18.10?download_url=file://.#tests/helpers/lock_probe.rs"
         },
         {
           "type": "application",
-          "bom-ref": "path+file://.#0.18.10 bin-target-2",
+          "bom-ref": "path+file://.#sqlite-rs@0.18.10 bin-target-2",
           "name": "sqlite-rs",
           "version": "0.18.10",
           "purl": "pkg:cargo/sqlite-rs@0.18.10?download_url=file://.#src/bin/sqlite-rs/main.rs"
         },
         {
           "type": "application",
-          "bom-ref": "path+file://.#0.18.10 bin-target-3",
+          "bom-ref": "path+file://.#sqlite-rs@0.18.10 bin-target-3",
           "name": "write_loop_probe",
           "version": "0.18.10",
           "purl": "pkg:cargo/sqlite-rs@0.18.10?download_url=file://.#tests/helpers/write_loop_probe.rs"
@@ -73,6 +73,20 @@
     ]
   },
   "components": [
+    {
+      "type": "library",
+      "bom-ref": "git+https://github.com/t-rust-db/db-cli?tag=v0.3.0#0.3.0",
+      "name": "db-cli",
+      "version": "0.3.0",
+      "description": "Generic REPL/readline infrastructure for t-rust-db engine CLIs",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/db-cli@0.3.0?vcs_url=git%2Bhttps://github.com/t-rust-db/db-cli%40245b9a69cbfeb919deaec393d328c1de9bdb569f"
+    },
     {
       "type": "library",
       "bom-ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#0.4.1",
@@ -105,6 +119,60 @@
         {
           "type": "vcs",
           "url": "https://github.com/rust-lang/cfg-if"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#dirs-sys@0.4.1",
+      "author": "Simon Ochsenreither <simon@ochsenreither.de>",
+      "name": "dirs-sys",
+      "version": "0.4.1",
+      "description": "System-level helper functions for the dirs and directories crates.",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/dirs-sys@0.4.1",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/dirs-dev/dirs-sys-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#dirs@5.0.1",
+      "author": "Simon Ochsenreither <simon@ochsenreither.de>",
+      "name": "dirs",
+      "version": "5.0.1",
+      "description": "A tiny low-level library that provides platform-specific standard locations of directories for config, cache and other data on Linux, Windows, macOS and Redox by leveraging the mechanisms defined by the XDG base/user directory specifications on Linux, the Known Folder API on Windows, and the Standard Directory guidelines on macOS.",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/dirs@5.0.1",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/soc/dirs-rs"
         }
       ]
     },
@@ -162,6 +230,41 @@
         {
           "type": "vcs",
           "url": "https://github.com/RazrFalcon/memmap2-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#option-ext@0.2.0",
+      "author": "Simon Ochsenreither <simon@ochsenreither.de>",
+      "name": "option-ext",
+      "version": "0.2.0",
+      "description": "Extends `Option` with additional operations",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MPL-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/option-ext@0.2.0",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/option-ext/"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/soc/option-ext"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/soc/option-ext.git"
         }
       ]
     },
@@ -265,6 +368,13 @@
   ],
   "dependencies": [
     {
+      "ref": "git+https://github.com/t-rust-db/db-cli?tag=v0.3.0#0.3.0",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#dirs@5.0.1",
+        "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189"
+      ]
+    },
+    {
       "ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#0.4.1",
       "dependsOn": [
         "registry+https://github.com/rust-lang/crates.io-index#memmap2@0.9.11",
@@ -272,13 +382,27 @@
       ]
     },
     {
-      "ref": "path+file://.#0.18.10",
+      "ref": "path+file://.#sqlite-rs@0.18.10",
       "dependsOn": [
+        "git+https://github.com/t-rust-db/db-cli?tag=v0.3.0#0.3.0",
         "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#0.4.1"
       ]
     },
     {
       "ref": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4"
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#dirs-sys@0.4.1",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189",
+        "registry+https://github.com/rust-lang/crates.io-index#option-ext@0.2.0"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#dirs@5.0.1",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#dirs-sys@0.4.1"
+      ]
     },
     {
       "ref": "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189"
@@ -288,6 +412,9 @@
       "dependsOn": [
         "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189"
       ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#option-ext@0.2.0"
     },
     {
       "ref": "registry+https://github.com/rust-lang/crates.io-index#ruzstd@0.7.3",

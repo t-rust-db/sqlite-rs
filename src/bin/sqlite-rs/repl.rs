@@ -18,15 +18,16 @@
 //! `ends_with_semicolon` goes through the real tokenizer, not a
 //! newline-oblivious `str::ends_with(';')`.
 //!
-//! Line editing and history (#551, hand-rolled per #558): input is
-//! read through [`crate::readline::Readline`], a zero-dependency
-//! (beyond `nix`) editor giving up/down arrow history navigation,
-//! tab completion, and syntax highlighting, falling back to plain line
-//! reads when stdin isn't a tty (piped scripts, as used by every test
-//! in this crate). History persists across sessions at
-//! [`crate::readline::history_path`]; loading/saving is best-effort — a
-//! missing `$HOME`/`$XDG_STATE_HOME` or an unwritable history file
-//! never blocks the session.
+//! Line editing and history (#551; hand-rolled per #558, then handed to
+//! db-cli in t-rust-db/sqlite-rs#14): input is read through
+//! [`db_cli::Readline`] — up/down arrow and Ctrl-P/N history, emacs
+//! keys, tab completion via [`crate::completion::SchemaCompleter`] and
+//! tokenizer-backed highlighting via [`crate::highlight::SqlHighlighter`]
+//! — falling back to plain line reads (no prompt, like `sqlite3`) when
+//! stdin isn't a tty (piped scripts, as used by every test in this
+//! crate). History persists across sessions at [`history_path`];
+//! loading/saving is best-effort — a missing `$HOME`/`$XDG_STATE_HOME`
+//! or an unwritable history file never blocks the session.
 //!
 //! Dot-commands (#478, #495): `.quit`/`.exit`/`.tables` plus `.help`,
 //! `.version`, `.schema`, `.dump`, `.headers`, `.mode`, `.databases`,
@@ -35,13 +36,13 @@
 //! trimmed.strip_prefix('.')` block below. `.headers`/`.mode` flip
 //! `ReplState` fields the query-result printer (`mode.rs::print_rows`)
 //! reads on every subsequent `SELECT`; `.color` flips
-//! [`crate::readline::Readline::set_color`] instead, since it only
+//! [`db_cli::Readline::set_color`] instead, since it only
 //! affects the in-progress input line, not query output; the rest read
 //! from the database (via `dot_commands.rs`) and print immediately.
 
 use std::cell::RefCell;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::rc::Rc;
 
@@ -61,7 +62,10 @@ use crate::dot_commands::{
 use crate::mode::{print_rows, OutputMode};
 use crate::pragma_query::{execute_pragma_query, parse_pragma_query};
 use crate::query::{compile_select_program, write_list_row, SelectOutcome};
-use crate::readline::{history_path, ReadlineError};
+use db_cli::{Readline, ReadlineError};
+
+use crate::completion::SchemaCompleter;
+use crate::highlight::SqlHighlighter;
 use crate::tables::{list_table_and_view_names, print_table_names};
 
 /// Session state that persists across statements within one `run_repl`
@@ -83,13 +87,12 @@ pub fn run_repl(path: &Path) -> ExitCode {
     };
     let pager = Rc::new(RefCell::new(pager));
 
-    let mut editor = match crate::readline::Readline::new() {
-        Ok(e) => e,
-        Err(e) => {
-            eprintln!("error: initializing line editor: {e}");
-            return ExitCode::FAILURE;
-        }
-    };
+    let mut editor = Readline::new();
+    editor.set_highlighter(SqlHighlighter);
+    // Completion works against whatever schema is currently readable;
+    // the loop below refreshes this snapshot before every prompt.
+    let completion_schemas = Rc::new(RefCell::new(Vec::new()));
+    editor.set_completer(SchemaCompleter::new(Rc::clone(&completion_schemas)));
     let history_file = history_path();
     if let Some(history_file) = &history_file {
         // Best-effort: a fresh install has no history file yet, and
@@ -104,16 +107,15 @@ pub fn run_repl(path: &Path) -> ExitCode {
     let mut buffer = String::new();
 
     loop {
-        // Best-effort: completion works against whatever schema is
-        // currently readable; a read error just means "no completion
+        // Best-effort: a schema read error just means "no completion
         // candidates from the schema this keystroke", never a fatal
         // error for the REPL itself.
-        let completion_schemas = {
+        *completion_schemas.borrow_mut() = {
             let borrowed = pager.borrow();
             let mut schema_cursor = TableCursor::new(&*borrowed, &header, 1);
             read_schema(&mut schema_cursor, header.text_encoding).unwrap_or_default()
         };
-        let line = match editor.read_line(prompt_str(&buffer), &completion_schemas) {
+        let line = match editor.read_line(prompt_str(&buffer)) {
             Ok(l) => l,
             Err(ReadlineError::Eof) => break, // Ctrl-D, or piped input exhausted.
             Err(ReadlineError::Interrupted) => {
@@ -122,7 +124,7 @@ pub fn run_repl(path: &Path) -> ExitCode {
                 buffer.clear();
                 continue;
             }
-            Err(e) => {
+            Err(ReadlineError::Io(e)) => {
                 eprintln!("error: reading input: {e}");
                 break;
             }
@@ -224,6 +226,21 @@ pub fn run_repl(path: &Path) -> ExitCode {
     }
 
     ExitCode::SUCCESS
+}
+
+/// Where the REPL's history lives: `$XDG_STATE_HOME/sqlite-rs/history`
+/// when that variable is set and non-empty, else `~/.sqlite-rs_history`;
+/// `None` with no `$HOME` at all (history is then session-only). Kept
+/// here rather than using [`db_cli::history_path`] so the on-disk
+/// location is unchanged from before #14 (`tests/unit/repl_history.rs`).
+fn history_path() -> Option<PathBuf> {
+    if let Some(xdg_state) = std::env::var_os("XDG_STATE_HOME") {
+        if !xdg_state.is_empty() {
+            return Some(PathBuf::from(xdg_state).join("sqlite-rs").join("history"));
+        }
+    }
+    let home = std::env::var_os("HOME")?;
+    Some(PathBuf::from(home).join(".sqlite-rs_history"))
 }
 
 fn prompt_str(buffer: &str) -> &'static str {

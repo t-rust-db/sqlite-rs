@@ -1,7 +1,15 @@
 // Copyright 2026 Schuberg Philis
 // SPDX-License-Identifier: Apache-2.0
-//! Tab completion (#558): SQL keywords, dot-commands, and — when a
-//! live schema is supplied — table/column names.
+//! Tab completion (#558): SQL keywords, dot-commands, and — from the
+//! live schema — table/column names, plugged into db-cli's line editor
+//! through its [`db_cli::Completer`] hook (t-rust-db/sqlite-rs#14).
+//!
+//! The schema changes during a session (DDL), so the completer holds an
+//! `Rc<RefCell<Vec<TableSchema>>>` the REPL loop refreshes before every
+//! prompt; the editor only ever sees the current snapshot.
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use sqlite_rs::schema::TableSchema;
 
@@ -86,6 +94,7 @@ const DOT_COMMANDS: &[&str] = &[
     ".dump",
     ".headers",
     ".mode",
+    ".color",
     ".databases",
     ".indices",
     ".tables",
@@ -125,9 +134,9 @@ fn word_at_cursor(line: &str, cursor: usize) -> WordAtCursor {
 }
 
 /// Returns `(replace_start, candidates)` — `replace_start` a char index
-/// into `line` (matching the line editor's own char-indexed cursor) —
-/// candidates that extend the word ending at `cursor` in `line`, given
-/// the live `schemas` (may be empty, e.g. before a database is opened).
+/// into `line` (db-cli's editor is char-indexed too) — candidates that
+/// extend the word ending at `cursor` in `line`, given the live
+/// `schemas` (may be empty, e.g. before a database is opened).
 pub fn complete(line: &str, cursor: usize, schemas: &[TableSchema]) -> (usize, Vec<String>) {
     let word = word_at_cursor(line, cursor);
 
@@ -160,6 +169,25 @@ pub fn complete(line: &str, cursor: usize, schemas: &[TableSchema]) -> (usize, V
     candidates.sort();
     candidates.dedup();
     (word.start, candidates)
+}
+
+/// [`db_cli::Completer`] over a schema snapshot the REPL keeps current.
+pub struct SchemaCompleter {
+    schemas: Rc<RefCell<Vec<TableSchema>>>,
+}
+
+impl SchemaCompleter {
+    /// A completer reading from `schemas`; the REPL loop refreshes that
+    /// cell before each prompt (see `repl.rs`).
+    pub fn new(schemas: Rc<RefCell<Vec<TableSchema>>>) -> Self {
+        SchemaCompleter { schemas }
+    }
+}
+
+impl db_cli::Completer for SchemaCompleter {
+    fn complete(&self, line: &str, cursor: usize) -> (usize, Vec<String>) {
+        complete(line, cursor, &self.schemas.borrow())
+    }
 }
 
 #[cfg(test)]
@@ -223,5 +251,21 @@ mod tests {
         let (start, cands) = complete(line, line.len(), &[]);
         assert_eq!(start, line.len());
         assert!(cands.len() > 10);
+    }
+
+    #[test]
+    fn schema_completer_sees_refreshed_schemas() {
+        use db_cli::Completer as _;
+        let cell = Rc::new(RefCell::new(Vec::new()));
+        let completer = SchemaCompleter::new(Rc::clone(&cell));
+        assert_eq!(
+            completer.complete("SELECT * FROM wid", 17).1,
+            Vec::<String>::new()
+        );
+        *cell.borrow_mut() = vec![schema("widgets", &["id"])];
+        assert_eq!(
+            completer.complete("SELECT * FROM wid", 17).1,
+            vec!["widgets".to_string()]
+        );
     }
 }

@@ -50,7 +50,7 @@ argument (the same logic as diverse-lens verification in MVL).
 | dbsqlfuzz / AFL / OSS-Fuzz | Malformed-input crashes | cargo-fuzz on `decode_record`, `btree_cursor`, `wal_frames`, `parse_select`, `vdbe_exec`, `scalar_functions` (#26) |
 | Anomaly testing (OOM injection, I/O fault, crash tests) | Failure-path bugs | power-cut torture harness (`tests/corpus/crash_torture_test.rs`); fault-injecting VFS impl (the `Vfs` trait is our injection point) |
 | Boundary/property testing | Edge values | proptest roundtrips (#26) |
-| Valgrind/sanitizers | Memory errors | Largely subsumed by Pillar 1 (safe Rust) — crate-wide `#![deny(unsafe_code)]` (#66) means the only `unsafe` for miri to check is the audited `src/sys/termios.rs (fcntl left with the VFS to db-storage)` syscall carve-out (ADR-0031, #592), not a codebase-wide concern |
+| Valgrind/sanitizers | Memory errors | Largely subsumed by Pillar 1 (safe Rust) — crate-wide `#![deny(unsafe_code)]` (#66) means there is no `unsafe` left in this crate for miri to check — ADR-0031's vendored `fcntl`/`termios` FFI moved with the VFS to db-storage (t-rust-db/sqlite-rs#2) and with the line editor to db-cli (#14) |
 | Disabled-optimization diff | Optimizer bugs | Future: planner-on vs planner-off result diffing (V4) — full scans as the reference implementation |
 
 ## Requirements

@@ -21,12 +21,13 @@ targets = [
 ignore = []
 
 [licenses]
-# MIT is needed only by MIT-only crates arriving transitively through
-# first-party git dependencies (ADR-0040): `ruzstd` and `twox-hash` via
-# db-storage (until t-rust-db/db-storage#12 makes them optional). Remove MIT
-# again when nothing in the resolved graph requires it (`cargo deny check
+# MIT and MPL-2.0 are needed only by crates arriving transitively through
+# first-party git dependencies (ADR-0040): `ruzstd`/`twox-hash` (MIT) via
+# db-storage (until t-rust-db/db-storage#12), `option-ext` (MPL-2.0, via
+# `dirs`) and `libredox`/`redox_users` (MIT) via db-cli. Remove each again
+# when nothing in the resolved graph requires it (`cargo deny check
 # licenses` reports the missing allowance instead of a silent pass).
-allow = ["Apache-2.0", "MIT"]
+allow = ["Apache-2.0", "MIT", "MPL-2.0"]
 confidence-threshold = 0.8
 
 [bans]
@@ -39,4 +40,7 @@ unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # First-party t-rust-db crates only (ADR-0040); one entry per adopted crate.
-allow-git = ["https://github.com/t-rust-db/db-storage"]
+allow-git = [
+    "https://github.com/t-rust-db/db-storage",
+    "https://github.com/t-rust-db/db-cli",
+]

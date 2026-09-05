@@ -15,6 +15,22 @@ categories = ["database", "database-implementations"]
 # the features this crate uses, nothing by default. Bumping a tag is a
 # reviewed dependency update: check-deny, cargo vet, sbom, full test run.
 db-storage = { version = "0.4.1", git = "https://github.com/t-rust-db/db-storage", tag = "v0.4.1", default-features = false, features = ["row"] }
+# CLI-only (readline, history, REPL loop, output modes — t-rust-db/sqlite-rs#14/#15):
+# optional so library consumers with `default-features = false` never pull
+# it (or its libc/dirs closure) in.
+db-cli = { version = "0.3.0", git = "https://github.com/t-rust-db/db-cli", tag = "v0.3.0", optional = true }
+
+[features]
+default = ["cli"]
+# The `sqlite-rs` binary. Off => library only.
+cli = ["dep:db-cli"]
+
+# The CLI itself; auto-discovery would find it anyway, but the feature gate
+# needs an explicit entry.
+[[bin]]
+name = "sqlite-rs"
+path = "src/bin/sqlite-rs/main.rs"
+required-features = ["cli"]
 
 # Test-only helper: a genuine second OS process for the cross-process
 # lock-contention tests (#66; now `tests/corpus/*_interop_test.rs` — the
@@ -251,8 +267,9 @@ debug = true
 # carry their own `#![deny(unsafe_code)]`; this makes the crate-wide
 # default explicit at the Cargo.toml level too, so both lib and bin
 # targets are covered even if a module-level attribute is ever dropped.
-# `src/sys/termios.rs` is the only `#![allow(unsafe_code)]` carve-out
-# (#592; `fcntl` left with the VFS to db-storage, t-rust-db/sqlite-rs#2).
+# No `#![allow(unsafe_code)]` carve-outs remain: `fcntl` left with the VFS
+# to db-storage (t-rust-db/sqlite-rs#2), `termios` with the line editor to
+# db-cli (#14). ADR-0031's vendored FFI now lives in those crates.
 unsafe_code = "deny"
 
 [lints.clippy]

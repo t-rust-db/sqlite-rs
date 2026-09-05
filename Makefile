@@ -9,11 +9,9 @@
 #     db-storage's `row` module (t-rust-db/sqlite-rs#2-#7) and is that
 #     crate's to gate; `src/lib.rs` only re-exports it. The VFS `dyn`
 #     boundary (`Vfs`/`VfsFile`/`SharedLockGuard`) and the vendored `fcntl`
-#     FFI went with it. `src/sys/termios.rs` is what remains of #563's
-#     vendored FFI (see .openspec/adr/0031-vendor-nix-subset.md) — the
-#     crate's sole `#![allow(unsafe_code)]` carve-out until the CLI moves
-#     to db-cli (#14). `src/lib.rs` is `#![deny(unsafe_code)]` everywhere
-#     else, with no override possible outside `src/sys/`.
+#     FFI went with it; the `termios` half went with the line editor to
+#     db-cli (#14). Nothing in `src/` allows `unsafe` any more:
+#     `src/lib.rs` is `#![deny(unsafe_code)]` with no override anywhere.
 #   - src/vdbe/exec.rs and src/vdbe/cursor.rs carry that same VFS boundary
 #     one level up, as `Rc<dyn PageSource>` (#90, permanent per ADR-0013,
 #     #114 considered and rejected). The erasure is the point:
@@ -33,7 +31,7 @@
 # precisely so the file stays limit-clean (and so the check survives into
 # release builds).
 MVL_LIMIT ?= cargo-mvl-limit
-MVL_LIMIT_EXCLUDE := src/vdbe/exec.rs src/vdbe/cursor.rs src/bin/* src/sys.rs src/sys/*
+MVL_LIMIT_EXCLUDE := src/vdbe/exec.rs src/vdbe/cursor.rs src/bin/*
 
 COVERAGE_MIN := 80
 
@@ -261,7 +259,7 @@ supply-chain: check-deny check-audit check-license-headers ## All supply-chain g
 check-grammar-drift: ## Grammar gate: .openspec/grammar/sqlite.ebnf annotations must resolve against pinned parse.y
 	@python3 tools/grammar_drift.py --strict
 
-check-mvl-limit: ## Qualified-subset gate: no unsafe/dyn/lifetimes in src/ (mvl-rust rust-limit; the 2 VDBE files with the Rc<dyn PageSource> boundary (#90, #114), src/bin (stdout/stderr CLI I/O boundary), and src/sys/ (vendored termios FFI, #563 — the crate's sole unsafe carve-out, see .openspec/adr/0031-vendor-nix-subset.md), exempt — #66 removed the unsafe rationale from src/vfs/lock.rs, shm.rs, test_lock_probe.rs, so those are back in the qualified subset)
+check-mvl-limit: ## Qualified-subset gate: no unsafe/dyn/lifetimes in src/ (mvl-rust rust-limit; the 2 VDBE files with the Rc<dyn PageSource> boundary (#90, #114), and src/bin (stdout/stderr CLI I/O boundary) exempt — #66 removed the unsafe rationale from src/vfs/lock.rs, shm.rs, test_lock_probe.rs, so those are back in the qualified subset)
 	@command -v $(MVL_LIMIT) >/dev/null 2>&1 || { \
 	  echo "error: $(MVL_LIMIT) not found."; \
 	  echo "install: cargo install cargo-mvl  (or build from mvl-lang/mvl-rust:"; \
@@ -294,8 +292,8 @@ LAB271_REMOTE ?= lab271
 LAB271_URL ?= https://github.com/Lab271/sqlite-rs.git
 # Paths already repointed at db-storage/db-core/db-cli (ADR-0039): Lab271's
 # changes there no longer apply here (apply them in db-storage instead).
-# Grows as #14-#19 land.
-LAB271_EXCLUDE := src/vfs.rs src/vfs src/sys/fcntl.rs src/pager.rs src/pager src/header.rs src/record.rs src/record src/btree.rs src/btree src/schema.rs src/schema src/format.rs src/integrity.rs
+# Grows as #15-#19 land.
+LAB271_EXCLUDE := src/vfs.rs src/vfs src/sys.rs src/sys src/bin/sqlite-rs/readline.rs src/bin/sqlite-rs/readline src/pager.rs src/pager src/header.rs src/record.rs src/record src/btree.rs src/btree src/schema.rs src/schema src/format.rs src/integrity.rs
 
 sync-lab271: ## Fetch Lab271/sqlite-rs main and show the delta to fold in (ADR-0039; apply with `make sync-lab271 APPLY=1`)
 	@git remote get-url $(LAB271_REMOTE) >/dev/null 2>&1 || git remote add $(LAB271_REMOTE) $(LAB271_URL)

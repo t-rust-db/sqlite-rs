@@ -4,19 +4,25 @@
 //! strings, numbers, comments, dot-commands, colored while typing.
 //! Built on the real tokenizer ([`sqlite_rs::parser::tokenizer::Tokenizer`])
 //! so keyword/string/number spans match the parser's own idea of a
-//! token — never panics on malformed/partial input mid-edit.
+//! token — never panics on malformed/partial input mid-edit. Plugged
+//! into db-cli's editor via its [`db_cli::Highlighter`] hook
+//! (t-rust-db/sqlite-rs#14), replacing db-cli's keyword-list default.
 
 use sqlite_rs::parser::tokenizer::{TokenKind, Tokenizer};
 
-use super::term;
+const RESET: &str = "\x1b[0m";
+const BOLD_BLUE: &str = "\x1b[1;34m";
+const GREEN: &str = "\x1b[32m";
+const CYAN: &str = "\x1b[36m";
+const GRAY: &str = "\x1b[90m";
+const YELLOW: &str = "\x1b[33m";
 
 /// Colorizes `line` for display, returning a string with ANSI escapes
-/// inserted (never changing the underlying text length in a way that
-/// would desync the cursor — callers redraw the whole line each time,
-/// so this only needs to be visually correct, not cursor-math-safe).
+/// inserted — zero-width additions only, so db-cli's cursor math stays
+/// correct (its `Highlighter` contract).
 pub fn highlight(line: &str) -> String {
     if line.trim_start().starts_with('.') {
-        return format!("{}{line}{}", term::YELLOW, term::RESET);
+        return format!("{YELLOW}{line}{RESET}");
     }
 
     let mut spans: Vec<(usize, usize, &'static str)> = Vec::new();
@@ -28,10 +34,10 @@ pub fn highlight(line: &str) -> String {
         }
         let color = match &tok.kind {
             TokenKind::Keyword(_) | TokenKind::Null | TokenKind::True | TokenKind::False => {
-                Some(term::BOLD_BLUE)
+                Some(BOLD_BLUE)
             }
-            TokenKind::String(_) | TokenKind::Blob(_) => Some(term::GREEN),
-            TokenKind::Integer(_) | TokenKind::Float(_) => Some(term::CYAN),
+            TokenKind::String(_) | TokenKind::Blob(_) => Some(GREEN),
+            TokenKind::Integer(_) | TokenKind::Float(_) => Some(CYAN),
             _ => None,
         };
         if let Some(color) = color {
@@ -39,7 +45,7 @@ pub fn highlight(line: &str) -> String {
         }
     }
     for (start, end) in comment_byte_ranges(line) {
-        spans.push((start, end, term::GRAY));
+        spans.push((start, end, GRAY));
     }
     spans.sort_by_key(|(start, _, _)| *start);
 
@@ -60,7 +66,7 @@ pub fn highlight(line: &str) -> String {
         };
         out.push_str(color);
         out.push_str(span_text);
-        out.push_str(term::RESET);
+        out.push_str(RESET);
         pos = end;
     }
     out.push_str(line.get(pos..).unwrap_or(""));
@@ -112,6 +118,15 @@ fn comment_byte_ranges(line: &str) -> Vec<(usize, usize)> {
     ranges
 }
 
+/// [`db_cli::Highlighter`] wrapper over [`highlight`].
+pub struct SqlHighlighter;
+
+impl db_cli::Highlighter for SqlHighlighter {
+    fn highlight(&self, line: &str) -> String {
+        highlight(line)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,7 +158,7 @@ mod tests {
     #[test]
     fn dot_command_is_colored_as_one_span() {
         let out = highlight(".tables");
-        assert!(out.starts_with(term::YELLOW));
+        assert!(out.starts_with(YELLOW));
         assert_eq!(strip_ansi(&out), ".tables");
     }
 
@@ -151,18 +166,18 @@ mod tests {
     fn comment_detected_and_preserves_text() {
         let line = "SELECT 1; -- trailing";
         assert_eq!(strip_ansi(&highlight(line)), line);
-        assert!(highlight(line).contains(term::GRAY));
+        assert!(highlight(line).contains(GRAY));
     }
 
     #[test]
     fn keyword_is_colored() {
-        assert!(highlight("SELECT").contains(term::BOLD_BLUE));
+        assert!(highlight("SELECT").contains(BOLD_BLUE));
     }
 
     #[test]
     fn block_comment_detected_and_preserves_text() {
         let line = "SELECT /* c */ 1;";
         assert_eq!(strip_ansi(&highlight(line)), line);
-        assert!(highlight(line).contains(term::GRAY));
+        assert!(highlight(line).contains(GRAY));
     }
 }

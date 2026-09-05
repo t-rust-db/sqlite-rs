@@ -27,6 +27,15 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
   links into moved code use the `db-storage:` cross-repo form
   (`tools/assurance.py` feature 11); MC/DC and MVL file lists shrink to
   what is still here (#16).
+- The line editor is db-cli's (`db_cli::Readline`, v0.3.0): emacs
+  keybindings and Ctrl-P/N history are new; tab completion
+  (`completion.rs`) and tokenizer-backed highlighting (`highlight.rs`)
+  are the same code plugged into db-cli's `Completer`/`Highlighter`
+  hooks; history stays at `$XDG_STATE_HOME/sqlite-rs/history` /
+  `~/.sqlite-rs_history`. When stdin is not a tty the REPL no longer
+  echoes prompts, matching `sqlite3`. `src/bin/sqlite-rs/readline/` and
+  `src/sys/termios.rs` deleted — the crate has no `unsafe` left; db-cli
+  is an optional dependency behind the default `cli` feature (#14).
 
 ## [0.18.10] - 2026-08-31
 
