@@ -238,8 +238,8 @@ dependencies = [
 
 [[package]]
 name = "db-storage"
-version = "0.4.0"
-source = "git+https://github.com/t-rust-db/db-storage?tag=v0.4.0#98a6580daf637dd4e276608d97034ccb15752633"
+version = "0.4.1"
+source = "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#7ea53e48be26bdcc677df8c5739f8eb3da050ecf"
 dependencies = [
  "memmap2",
  "ruzstd",

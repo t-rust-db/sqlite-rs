@@ -15,6 +15,18 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
   `db-storage` (`row` feature, v0.4.0) declared, `deny.toml` allows
   its source and the MIT license its transitive crates need, SBOMs
   regenerated (ADR-0040 amending 0030/0031, #13).
+- The storage stack — `vfs` (+ vendored `fcntl`), `pager`, `header`,
+  `record`, `btree`, `schema`, `format`, `integrity` (~17,000 lines) — is
+  now `db_storage::row::*`, re-exported under the same `sqlite_rs::`
+  module paths from `src/lib.rs`, private copies deleted (#2–#7). One
+  coupled stack, one change: the orphan rule (`impl PageSource for
+  RefCell<Pager>`, ADR-0017) and shared header/record types make a
+  module-at-a-time switch uncompilable. Pager fixture tests moved to
+  `tests/unit/pager_fixtures.rs`; the layer-isolation guard now checks
+  that `db_storage::` is named only in the `src/lib.rs` facade; spec
+  links into moved code use the `db-storage:` cross-repo form
+  (`tools/assurance.py` feature 11); MC/DC and MVL file lists shrink to
+  what is still here (#16).
 
 ## [0.18.10] - 2026-08-31
 

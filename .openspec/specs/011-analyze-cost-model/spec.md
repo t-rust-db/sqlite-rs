@@ -78,8 +78,8 @@ dispatched to a dedicated codegen path.
 
 `ANALYZE` MUST populate `sqlite_stat1(tbl TEXT, idx TEXT, stat TEXT)`,
 created automatically (as an ordinary b-tree-backed table via the same
-system-table path as `sqlite_master`, see `src/schema.rs`/
-`src/btree/master.rs`) the first time `ANALYZE` runs, matching real
+system-table path as `sqlite_master`, see `db-storage:src/row/schema/mod.rs`/
+`db-storage:src/row/btree/master.rs`) the first time `ANALYZE` runs, matching real
 SQLite's `sqlite_stat1` shape (`sqlite3 src/analyze.c`).
 
 - One row per table with `idx = NULL` and `stat = "<row-count>"`.

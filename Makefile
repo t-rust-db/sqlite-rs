@@ -5,17 +5,15 @@
 .PHONY: bench-compile-path help test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures fixtures-bench bench bench-cli bench-status bench-point-lookup extract-sql-corpus test-corpus test-parity test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
 
 # Qualified-subset gate (issue #23). Boundary policy:
-#   - Tier 0 core (src/record/, src/btree/, src/header.rs, schema reader):
-#     stays limit-clean, no exceptions.
-#   - src/vfs/ is the designated `dyn` boundary (its `Vfs`/`VfsFile`/
-#     `SharedLockGuard` trait objects): exclude exactly that module here so
-#     the claim stays explicit — everything above the VFS is in the
-#     qualified subset. It no longer needs `unsafe` itself (#66): `fcntl`/
-#     `-shm` access goes through the safe wrappers in `src/sys/` (#563,
-#     vendored FFI — the crate's sole `#![allow(unsafe_code)]` carve-out;
-#     see .openspec/adr/0031-vendor-nix-subset.md). `src/lib.rs` is
-#     `#![deny(unsafe_code)]` everywhere else, with no override possible
-#     outside `src/sys/`.
+#   - Tier 0 core (vfs, pager, header, record, btree, schema) now lives in
+#     db-storage's `row` module (t-rust-db/sqlite-rs#2-#7) and is that
+#     crate's to gate; `src/lib.rs` only re-exports it. The VFS `dyn`
+#     boundary (`Vfs`/`VfsFile`/`SharedLockGuard`) and the vendored `fcntl`
+#     FFI went with it. `src/sys/termios.rs` is what remains of #563's
+#     vendored FFI (see .openspec/adr/0031-vendor-nix-subset.md) — the
+#     crate's sole `#![allow(unsafe_code)]` carve-out until the CLI moves
+#     to db-cli (#14). `src/lib.rs` is `#![deny(unsafe_code)]` everywhere
+#     else, with no override possible outside `src/sys/`.
 #   - src/vdbe/exec.rs and src/vdbe/cursor.rs carry that same VFS boundary
 #     one level up, as `Rc<dyn PageSource>` (#90, permanent per ADR-0013,
 #     #114 considered and rejected). The erasure is the point:
@@ -35,7 +33,7 @@
 # precisely so the file stays limit-clean (and so the check survives into
 # release builds).
 MVL_LIMIT ?= cargo-mvl-limit
-MVL_LIMIT_EXCLUDE := src/vfs.rs src/vfs/memory.rs src/vfs/unix.rs src/vfs/page_source.rs src/vdbe/exec.rs src/vdbe/cursor.rs src/bin/* src/sys.rs src/sys/*
+MVL_LIMIT_EXCLUDE := src/vdbe/exec.rs src/vdbe/cursor.rs src/bin/* src/sys.rs src/sys/*
 
 COVERAGE_MIN := 80
 
@@ -98,9 +96,10 @@ test-tiers: ## Run the tier conformance suite standalone (tier0..tier3 — see .
 # obligations land: btree (#52), then vdbe/functions, parser/grammar,
 # parser/tokenizer, vdbe/exec, record/encode (#368), then vdbe/program +
 # vdbe/control (opcode dispatch, fix/mcdc-scope).
-MCDC_FILES := src/btree.rs src/btree/*.rs src/btree/table/*.rs src/btree/index/*.rs \
-	src/vdbe/functions.rs src/parser/grammar.rs src/parser/tokenizer.rs \
-	src/vdbe/exec.rs src/record/encode.rs \
+# src/btree/** and src/record/encode.rs left for db-storage (t-rust-db/sqlite-rs#4/#6);
+# their obligations are now that crate's to track.
+MCDC_FILES := src/vdbe/functions.rs src/parser/grammar.rs src/parser/tokenizer.rs \
+	src/vdbe/exec.rs \
 	src/vdbe/program.rs src/vdbe/control.rs
 
 # Committed obligations snapshot (tests/mcdc/obligations.json), analogous
@@ -262,7 +261,7 @@ supply-chain: check-deny check-audit check-license-headers ## All supply-chain g
 check-grammar-drift: ## Grammar gate: .openspec/grammar/sqlite.ebnf annotations must resolve against pinned parse.y
 	@python3 tools/grammar_drift.py --strict
 
-check-mvl-limit: ## Qualified-subset gate: no unsafe/dyn/lifetimes in src/ (mvl-rust rust-limit; the 4 files with genuine dyn Vfs/VfsFile/SharedLockGuard trait objects, the 2 VDBE files with the Rc<dyn PageSource> boundary (#90, #114), src/bin (stdout/stderr CLI I/O boundary), and src/sys/ (vendored fcntl/termios FFI, #563 — the crate's sole unsafe carve-out, see .openspec/adr/0031-vendor-nix-subset.md), exempt — #66 removed the unsafe rationale from src/vfs/lock.rs, shm.rs, test_lock_probe.rs, so those are back in the qualified subset)
+check-mvl-limit: ## Qualified-subset gate: no unsafe/dyn/lifetimes in src/ (mvl-rust rust-limit; the 2 VDBE files with the Rc<dyn PageSource> boundary (#90, #114), src/bin (stdout/stderr CLI I/O boundary), and src/sys/ (vendored termios FFI, #563 — the crate's sole unsafe carve-out, see .openspec/adr/0031-vendor-nix-subset.md), exempt — #66 removed the unsafe rationale from src/vfs/lock.rs, shm.rs, test_lock_probe.rs, so those are back in the qualified subset)
 	@command -v $(MVL_LIMIT) >/dev/null 2>&1 || { \
 	  echo "error: $(MVL_LIMIT) not found."; \
 	  echo "install: cargo install cargo-mvl  (or build from mvl-lang/mvl-rust:"; \
@@ -294,8 +293,9 @@ version-pin: ## Version gate: every sqlite3 pin site agrees with Cargo.toml's [p
 LAB271_REMOTE ?= lab271
 LAB271_URL ?= https://github.com/Lab271/sqlite-rs.git
 # Paths already repointed at db-storage/db-core/db-cli (ADR-0039): Lab271's
-# changes there no longer apply here. Grows as #2-#7, #14-#19 land.
-LAB271_EXCLUDE :=
+# changes there no longer apply here (apply them in db-storage instead).
+# Grows as #14-#19 land.
+LAB271_EXCLUDE := src/vfs.rs src/vfs src/sys/fcntl.rs src/pager.rs src/pager src/header.rs src/record.rs src/record src/btree.rs src/btree src/schema.rs src/schema src/format.rs src/integrity.rs
 
 sync-lab271: ## Fetch Lab271/sqlite-rs main and show the delta to fold in (ADR-0039; apply with `make sync-lab271 APPLY=1`)
 	@git remote get-url $(LAB271_REMOTE) >/dev/null 2>&1 || git remote add $(LAB271_REMOTE) $(LAB271_URL)

@@ -24,7 +24,7 @@ Refs: 001/Req-3.
 
 SQLite has one VM, one instruction set, and one place semantics live: the
 value-semantics kernel (spec 008, `src/vdbe/{compare,affinity,coerce,value}.rs`
-plus `src/record/collation.rs`). The VDBE itself is a dumb dispatcher over that kernel —
+plus `db-storage:src/row/record/collation.rs`). The VDBE itself is a dumb dispatcher over that kernel —
 it owns control flow (jumps, subroutines, loop counters), register storage,
 and cursor plumbing, but it never re-derives a comparison, coercion, or
 collation rule the kernel already defines. This mirrors the epic's adopted
@@ -262,7 +262,7 @@ is comparison-distinct across `=`, DISTINCT, and ORDER BY" scenario
 The 6 compare-category opcodes — `Eq`, `Ge`, `Gt`, `Le`, `Lt`, and
 `RealAffinity` — MUST delegate their value comparison to spec 008's
 `src/vdbe/compare.rs` (cross-type ordering, Requirement 2 there) and
-collation dispatch to `src/record/collation.rs` (Requirement 3 there); the
+collation dispatch to `db-storage:src/row/record/collation.rs` (Requirement 3 there); the
 opcode layer supplies only the jump-on-result control flow and the P4
 collation-sequence descriptor (e.g. `"BINARY-8"`: collating function name
 plus operand affinity byte), never a second comparison rule. `RealAffinity`
@@ -573,7 +573,7 @@ VDBE-private serialization.
 - GIVEN `SELECT DISTINCT note FROM products` (harvested: `MakeRecord` 7
   times, P4 `"D"` — per `tools/opcodes-v2.json`)
 - THEN the packed record's varint header and serial-type-tagged payload
-  match spec 003's `**Implementation:** src/record.rs` encoding exactly —
+  match spec 003's `**Implementation:** db-storage:src/row/record/mod.rs` encoding exactly —
   `MakeRecord` calls that encoder rather than reimplementing it
 
 **Tests:** `src/vdbe/result.rs::tests::make_record_output_matches_spec_003_encoding`
@@ -1067,7 +1067,7 @@ CTE already shadows a same-named real table. `DROP VIEW` is parsed
 (#379) but not yet compiled — out of scope here.
 
 **Implementation:** `src/codegen/ddl/create_view.rs::compile_create_view`,
-`src/vdbe/cursor.rs::create_view`, `src/schema/ddl_reader.rs::read_views`,
+`src/vdbe/cursor.rs::create_view`, `db-storage:src/row/schema/ddl_reader.rs::read_views`,
 `src/codegen/subquery/views.rs::{expand_views, resolve_views}`
 
 #### Scenario: CREATE VIEW registers a sqlite_master row with rootpage 0

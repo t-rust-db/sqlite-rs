@@ -62,7 +62,7 @@ A library-level `Connection`/`Statement`/`Row` prepared-statement API
 (`sqlite3*`/`sqlite3_stmt*` equivalents) is planned but not yet
 implemented; today the public interface is the CLI shell driving
 `codegen::compile_statement` + `vdbe::Vm` directly, and `Value` lives in
-the record layer (`src/record/value.rs`).
+the record layer (`db-storage:src/row/record/value.rs`).
 
 **Implementation:** `src/lib.rs`, `src/bin/sqlite-rs/`
 
@@ -174,9 +174,9 @@ Logical storage as balanced trees.
 | `btree::{table,index}` insert/delete submodules | Tree operations (insert, delete, balance) | `btree.c` |
 | `TableCursor` / `IndexCursor` | Positioned iteration | `BtCursor` |
 | `btree::master` | `sqlite_master` reader (Tier 0 DDL slice) | `btree.c` |
-| Cell/page parsing (in `src/btree.rs`) | Cell encoding, page layout, overflow chains | Cell format, page types, overflow pages |
+| Cell/page parsing (in `db-storage:src/row/btree/mod.rs`) | Cell encoding, page layout, overflow chains | Cell format, page types, overflow pages |
 
-**Implementation:** `src/btree/`
+**Implementation:** `db-storage:src/row/btree/`
 
 **Estimated lines:** ~10,000
 
@@ -201,7 +201,7 @@ Page cache and transaction journaling.
 | `WalWriter` / `WalHeader` | Write-ahead log | `wal.c` |
 | `checkpoint` module | WAL → main DB | Checkpoint modes |
 
-**Implementation:** `src/pager/`
+**Implementation:** `db-storage:src/row/pager/`
 
 **Estimated lines:** ~12,000
 
@@ -238,11 +238,11 @@ Platform abstraction for I/O.
 
 A `WindowsVfs` (`os_win.c` equivalent) is planned but not yet implemented.
 
-**Implementation:** `src/vfs/`
+**Implementation:** `db-storage:src/row/vfs/`
 
 **Estimated lines:** ~8,000
 
-**VFS trait** (as actually defined in `src/vfs.rs`; abbreviated to the read/write/lock surface — the WAL `-shm` coordination methods (`claim_wal_read_lock`, `claim_wal_checkpoint_lock`, `active_wal_reader_marks`, `publish_wal_backfill`/`read_wal_backfill`, `claim_wal_write_lock`, `publish_wal_mx_frame`, `open_wal_shm`) are omitted here for brevity — see the source for the full trait):
+**VFS trait** (as actually defined in `db-storage:src/row/vfs/mod.rs`; abbreviated to the read/write/lock surface — the WAL `-shm` coordination methods (`claim_wal_read_lock`, `claim_wal_checkpoint_lock`, `active_wal_reader_marks`, `publish_wal_backfill`/`read_wal_backfill`, `claim_wal_write_lock`, `publish_wal_mx_frame`, `open_wal_shm`) are omitted here for brevity — see the source for the full trait):
 
 ```rust
 trait Vfs {
@@ -327,7 +327,7 @@ sqlite-rs MUST read and write files byte-compatible with SQLite 3.x.
 
 Each layer MUST communicate only through its defined interface. No layer SHALL reach into another layer's internals.
 
-**Implementation:** `src/vfs/`, `src/pager/`, `src/btree/`, `src/vdbe/`, `src/codegen/`, `src/parser/`
+**Implementation:** `db-storage:src/row/vfs/`, `db-storage:src/row/pager/`, `db-storage:src/row/btree/`, `src/vdbe/`, `src/codegen/`, `src/parser/`
 
 #### Scenario: B-tree does not know SQL
 
@@ -335,7 +335,7 @@ Each layer MUST communicate only through its defined interface. No layer SHALL r
 - WHEN reading the row's content
 - THEN the B-tree MUST return raw bytes, not parsed columns
 
-**Tests:** `tests/unit/layer_isolation.rs::tier0_modules_do_not_import_sql_execution_layers`
+**Tests:** `tests/unit/layer_isolation.rs::storage_is_reached_only_through_the_lib_rs_facade`
 
 #### Scenario: VDBE does not know file format
 
@@ -349,7 +349,7 @@ Each layer MUST communicate only through its defined interface. No layer SHALL r
 
 sqlite-rs MUST read and write files that SQLite 3.x can read and write.
 
-**Implementation:** `src/header.rs`, `src/pager/`, `src/btree/`
+**Implementation:** `db-storage:src/row/header.rs`, `db-storage:src/row/pager/`, `db-storage:src/row/btree/`
 
 **Tests:** `tests/corpus/harness.rs`
 
@@ -387,7 +387,7 @@ Development MUST use SQLite's test suite as the compatibility oracle.
 
 sqlite-rs MUST be able to extract every stored row from any well-formed SQLite database, regardless of which SQLite feature created it. Unsupported feature semantics MUST degrade to raw-row access, never to errors.
 
-**Implementation:** `src/pager.rs`, `src/vfs/lock.rs`, `src/vfs/shm.rs`, `src/btree/index.rs`, `src/schema/ddl_reader.rs`
+**Implementation:** `db-storage:src/row/pager/mod.rs`, `db-storage:src/row/vfs/lock.rs`, `db-storage:src/row/vfs/shm.rs`, `db-storage:src/row/btree/index.rs`, `db-storage:src/row/schema/ddl_reader.rs`
 
 **Tests:** `tests/tiers/tier0.rs::t0_feature_bearing_files_are_raw_row_readable`
 
@@ -397,7 +397,7 @@ sqlite-rs MUST be able to extract every stored row from any well-formed SQLite d
 - WHEN sqlite-rs dumps the database
 - THEN all rows of that table MUST be produced, even if WITHOUT ROWID write semantics are unimplemented
 
-**Tests:** `src/btree/index.rs::without_rowid_table_is_readable_as_index_btree`
+**Tests:** `db-storage:src/row/btree/index.rs::without_rowid_table_is_readable_as_index_btree`
 
 #### Scenario: Read a database with uncheckpointed WAL
 
@@ -405,7 +405,7 @@ sqlite-rs MUST be able to extract every stored row from any well-formed SQLite d
 - WHEN sqlite-rs reads the database
 - THEN the page view MUST include committed WAL frames — the data MUST match what `sqlite3` reports
 
-**Tests:** `src/pager.rs::tests::fixtures::wal_pending_fixture_shows_uncheckpointed_rows`
+**Tests:** `tests/unit/pager_fixtures.rs::wal_pending_fixture_shows_uncheckpointed_rows`
 
 #### Scenario: Read a UTF-16 database
 
@@ -413,7 +413,7 @@ sqlite-rs MUST be able to extract every stored row from any well-formed SQLite d
 - WHEN sqlite-rs dumps text values
 - THEN text MUST be decoded correctly
 
-**Tests:** `src/header.rs::tests::encoding_utf16le`, `src/header.rs::tests::encoding_utf16be`, `src/record/decode.rs::tests::text_utf16le_and_utf16be`
+**Tests:** `db-storage:src/row/header.rs::tests::encoding_utf16le`, `db-storage:src/row/header.rs::tests::encoding_utf16be`, `db-storage:src/row/record/decode.rs::tests::text_utf16le_and_utf16be`
 
 #### Scenario: Unknown schema entry degrades gracefully
 
@@ -421,7 +421,7 @@ sqlite-rs MUST be able to extract every stored row from any well-formed SQLite d
 - WHEN sqlite-rs dumps the database
 - THEN the shadow tables' raw rows MUST be readable and no error raised for the unknown module
 
-**Tests:** `src/schema/ddl_reader.rs::fts5_virtual_table_is_graceful_unknown_shadow_tables_are_readable`
+**Tests:** `db-storage:src/row/schema/ddl_reader.rs::fts5_virtual_table_is_graceful_unknown_shadow_tables_are_readable`
 
 #### Scenario: Hot journal is never ignored
 
@@ -429,7 +429,7 @@ sqlite-rs MUST be able to extract every stored row from any well-formed SQLite d
 - WHEN sqlite-rs opens it read-only
 - THEN it MUST NOT serve pre-rollback pages as committed data — it either applies recovery semantics or refuses with a clear error
 
-**Tests:** `src/pager.rs::tests::fixtures::hot_journal_fixture_recovers_committed_state`
+**Tests:** `tests/unit/pager_fixtures.rs::hot_journal_fixture_recovers_committed_state`
 
 #### Scenario: Reader takes a SHARED lock before serving pages
 
@@ -437,7 +437,7 @@ sqlite-rs MUST be able to extract every stored row from any well-formed SQLite d
 - WHEN it is open
 - THEN it MUST hold a journal-mode SHARED byte-range lock (`PENDING_BYTE+2` / `SHARED_SIZE`) on the file, blocking a concurrent writer's EXCLUSIVE lock, and release it when dropped
 
-**Tests:** `src/pager.rs::tests::open_acquires_shared_lock_released_on_drop`, `src/vfs/lock.rs::tests::shared_lock_blocks_concurrent_exclusive_lock_until_dropped`
+**Tests:** `db-storage:src/row/pager/mod.rs::tests::open_acquires_shared_lock_released_on_drop`, `db-storage:src/row/vfs/lock.rs::tests::shared_lock_blocks_concurrent_exclusive_lock_until_dropped`
 
 #### Scenario: Lock contention is reported as busy, not a generic I/O error
 
@@ -445,7 +445,7 @@ sqlite-rs MUST be able to extract every stored row from any well-formed SQLite d
 - WHEN sqlite-rs attempts to open the database for reading
 - THEN it MUST surface a distinguishable "database is locked" error, not a generic I/O failure
 
-**Tests:** `src/vfs/lock.rs::tests::lock_shared_fails_with_contention_errno_when_exclusively_held_elsewhere`
+**Tests:** `db-storage:src/row/vfs/lock.rs::tests::lock_shared_fails_with_contention_errno_when_exclusively_held_elsewhere`
 
 #### Scenario: WAL reader claims a reader-mark slot so a live checkpointer backs off
 
@@ -453,7 +453,7 @@ sqlite-rs MUST be able to extract every stored row from any well-formed SQLite d
 - WHEN a `Pager` opens the database
 - THEN it MUST claim a `WAL_READ_LOCK` slot and publish its `aReadMark` value, blocking a concurrent checkpointer from backfilling/truncating past that point, and release the slot when dropped
 
-**Tests:** `src/pager.rs::tests::open_claims_wal_read_lock_when_shm_present_released_on_drop`, `src/vfs/shm.rs::tests::claims_a_slot_and_publishes_mx_frame`, `src/vfs/shm.rs::tests::contended_slot_is_skipped_for_the_next_free_one`
+**Tests:** `db-storage:src/row/pager/mod.rs::tests::open_claims_wal_read_lock_when_shm_present_released_on_drop`, `db-storage:src/row/vfs/shm.rs::tests::claims_a_slot_and_publishes_mx_frame`, `db-storage:src/row/vfs/shm.rs::tests::contended_slot_is_skipped_for_the_next_free_one`
 
 ---
 
@@ -485,13 +485,13 @@ File-format and locking constants match SQLite specification:
 
 | Constant | SQLite | sqlite-rs | Source |
 |----------|--------|-----------|--------|
-| PENDING_BYTE | 0x40000000 | ✓ | `src/vfs/lock.rs` |
-| SHARED_FIRST | PENDING_BYTE + 2 | ✓ | `src/vfs/lock.rs` |
-| SHARED_SIZE | 510 | ✓ | `src/vfs/lock.rs` |
-| FILE_HEADER_LEN | 100 | ✓ | `src/header.rs` |
-| JOURNAL_MAGIC | 0xd9d505f920a163d7 | ✓ | `src/pager.rs` |
-| WAL_MAGIC_LE | 0x377f0682 | ✓ | `src/pager/wal.rs` |
-| WAL_MAGIC_BE | 0x377f0683 | ✓ | `src/pager/wal.rs` |
-| WAL_HEADER_LEN | 32 | ✓ | `src/pager/wal.rs` |
-| WAL_FRAME_HEADER | 24 | ✓ | `src/pager/wal.rs` |
-| MAX_PAYLOAD | 2^31-1 | ✓ | `src/btree.rs` |
+| PENDING_BYTE | 0x40000000 | ✓ | `db-storage:src/row/vfs/lock.rs` |
+| SHARED_FIRST | PENDING_BYTE + 2 | ✓ | `db-storage:src/row/vfs/lock.rs` |
+| SHARED_SIZE | 510 | ✓ | `db-storage:src/row/vfs/lock.rs` |
+| FILE_HEADER_LEN | 100 | ✓ | `db-storage:src/row/header.rs` |
+| JOURNAL_MAGIC | 0xd9d505f920a163d7 | ✓ | `db-storage:src/row/pager/mod.rs` |
+| WAL_MAGIC_LE | 0x377f0682 | ✓ | `db-storage:src/row/pager/wal.rs` |
+| WAL_MAGIC_BE | 0x377f0683 | ✓ | `db-storage:src/row/pager/wal.rs` |
+| WAL_HEADER_LEN | 32 | ✓ | `db-storage:src/row/pager/wal.rs` |
+| WAL_FRAME_HEADER | 24 | ✓ | `db-storage:src/row/pager/wal.rs` |
+| MAX_PAYLOAD | 2^31-1 | ✓ | `db-storage:src/row/btree/mod.rs` |

@@ -73,6 +73,15 @@ to this header too):
 10. Line coverage: reads cached cargo-llvm-cov (target/llvm-cov.json) or
     tarpaulin output if present; never runs coverage itself.
 
+11. Cross-repo links: a link prefixed `<repo>:` (e.g.
+    `db-storage:src/row/btree/mod.rs::TableCursor`) points into a sibling
+    t-rust-db repository — the storage stack moved there
+    (t-rust-db/sqlite-rs#2–#7) while its specs are still hosted here until
+    t-rust-db/db-storage#10. Resolution: if `../<repo>` is checked out next
+    to this one, the link is validated there exactly like a local one (file
+    exists, `::symbol` occurs); if not (CI), it is accepted unverified and
+    the count of such links is printed so the gap is visible, not silent.
+
 10b. Mutation score: reads cached cargo-mutants output
     (target/mutants.out/outcomes.json, written by `make mutants`);
     never runs mutation testing itself. Caught/(caught+missed), same
@@ -415,6 +424,30 @@ def report_model():
     return detail
 
 
+CROSS_REPO_RE = re.compile(r"^([a-z][a-z0-9-]*):(.+)$")
+# Feature 11: cross-repo links accepted without verification because the
+# sibling checkout is absent. Reported in the dashboard.
+CROSS_REPO_UNVERIFIED = []
+
+
+def _resolve_path(file_part):
+    """Resolve a link's path token to (root, path, verified).
+
+    Local paths resolve inside REPO_ROOT. `<repo>:path` (feature 11)
+    resolves inside `../<repo>` when that checkout exists; otherwise
+    returns (None, None, False) meaning "accept, unverified".
+    """
+    m = CROSS_REPO_RE.match(file_part)
+    if not m:
+        return REPO_ROOT, (REPO_ROOT / file_part).resolve(), True
+    repo, rel = m.group(1), m.group(2)
+    sibling = (REPO_ROOT.parent / repo).resolve()
+    if not sibling.is_dir():
+        CROSS_REPO_UNVERIFIED.append(file_part)
+        return None, None, False
+    return sibling, (sibling / rel).resolve(), True
+
+
 def _validate_link(entry):
     """Validate one link entry. Returns (entry, error) — error is None if valid.
 
@@ -427,11 +460,13 @@ def _validate_link(entry):
         return None
     parts = entry.split("::")
     file_part = parts[0].strip()
-    m = re.search(r"[\w/.-]+\.(?:rs|py|sh|toml)", file_part)
+    m = re.search(r"(?:[a-z][a-z0-9-]*:)?[\w/.-]+\.(?:rs|py|sh|toml)", file_part)
     if m:
         file_part = m.group(0)
-    resolved = (REPO_ROOT / file_part).resolve()
-    if not (resolved.is_relative_to(REPO_ROOT) and resolved.exists() and resolved.is_file()):
+    root, resolved, verified = _resolve_path(file_part)
+    if not verified:
+        return (entry, None)
+    if not (resolved.is_relative_to(root) and resolved.exists() and resolved.is_file()):
         return (entry, "file missing")
     if len(parts) > 1:
         symbol = re.sub(r"\(.*\)$", "", parts[-1].strip())
@@ -481,8 +516,10 @@ def parse_specs():
             impl_exists = False
             if impl_path and not planned:
                 impl_file = impl_path.split("::")[0].strip()
-                resolved = (REPO_ROOT / impl_file).resolve()
-                impl_exists = resolved.is_relative_to(REPO_ROOT) and resolved.exists()
+                root, resolved, verified = _resolve_path(impl_file)
+                impl_exists = (not verified) or (
+                    resolved.is_relative_to(root) and resolved.exists()
+                )
 
             dead_links = []
 
@@ -711,6 +748,10 @@ def report(requirements, verbose=False, traceability_only=False):
     print(f"Coverage (E->P):      {backed}/{total_scenarios} scenarios test-backed  ({coverage:.0%}, {direct} per-scenario)")
     if total_dead:
         print(f"DEAD LINKS:           {total_dead} — false claims of coverage, penalized below 0 in Coverage above; fix the spec (see --verbose)")
+    if CROSS_REPO_UNVERIFIED:
+        n = len(set(CROSS_REPO_UNVERIFIED))
+        repos = sorted({x.split(":")[0] for x in CROSS_REPO_UNVERIFIED})
+        print(f"Cross-repo links:     {n} accepted unverified — no sibling checkout for {', '.join(repos)} (feature 11)")
 
     if not traceability_only:
         corpus_total = sum(1 for r in active if r["corpus_files"])

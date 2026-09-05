@@ -14,11 +14,12 @@ categories = ["database", "database-implementations"]
 # First-party t-rust-db crates, pinned to release tags (ADR-0040). Exactly
 # the features this crate uses, nothing by default. Bumping a tag is a
 # reviewed dependency update: check-deny, cargo vet, sbom, full test run.
-db-storage = { version = "0.4.0", git = "https://github.com/t-rust-db/db-storage", tag = "v0.4.0", default-features = false, features = ["row"] }
+db-storage = { version = "0.4.1", git = "https://github.com/t-rust-db/db-storage", tag = "v0.4.1", default-features = false, features = ["row"] }
 
-# Test-only helper: a genuine second OS process for `src/vfs/lock.rs` and
-# `src/vfs/shm.rs`'s cross-process lock-contention tests (#66). Not a
-# `#[[test]]` itself — spawned via `Command`/`CARGO_BIN_EXE_lock_probe`.
+# Test-only helper: a genuine second OS process for the cross-process
+# lock-contention tests (#66; now `tests/corpus/*_interop_test.rs` — the
+# in-module ones moved to db-storage with `row::vfs`). Not a `#[[test]]`
+# itself — spawned via `Command`/`CARGO_BIN_EXE_lock_probe`.
 [[bin]]
 name = "lock_probe"
 path = "tests/helpers/lock_probe.rs"
@@ -51,6 +52,10 @@ path = "tests/unit/header.rs"
 [[test]]
 name = "unit_record"
 path = "tests/unit/record.rs"
+
+[[test]]
+name = "unit_pager_fixtures"
+path = "tests/unit/pager_fixtures.rs"
 
 [[test]]
 name = "unit_vfs"
@@ -173,6 +178,10 @@ name = "btree_proptest"
 path = "tests/proptest/btree_proptest.rs"
 
 [dev-dependencies]
+# Same crate, plus its `test-support` feature (`btree::test_minimal_db`) for
+# this crate's own unit tests — feature unification keeps it out of release
+# builds (t-rust-db/db-storage#13).
+db-storage = { version = "0.4.1", git = "https://github.com/t-rust-db/db-storage", tag = "v0.4.1", default-features = false, features = ["row", "test-support"] }
 proptest = "1"
 criterion = "0.8"
 
@@ -242,8 +251,8 @@ debug = true
 # carry their own `#![deny(unsafe_code)]`; this makes the crate-wide
 # default explicit at the Cargo.toml level too, so both lib and bin
 # targets are covered even if a module-level attribute is ever dropped.
-# `src/sys/{fcntl,termios}.rs` are the only `#![allow(unsafe_code)]`
-# carve-outs (#592).
+# `src/sys/termios.rs` is the only `#![allow(unsafe_code)]` carve-out
+# (#592; `fcntl` left with the VFS to db-storage, t-rust-db/sqlite-rs#2).
 unsafe_code = "deny"
 
 [lints.clippy]

@@ -584,9 +584,9 @@ Parse errors SHOULD include source location and helpful context.
 
 The Tier 0 minimal DDL reader (used to decode `sqlite_master` for the READ CORE) MUST NOT depend on the full parser. It extracts table names, column names, declared types, and WITHOUT ROWID / STRICT markers from DDL text — nothing more.
 
-**Implementation:** `src/schema/ddl_reader.rs` (not under `src/parser/`)
+**Implementation:** `db-storage:src/row/schema/ddl_reader.rs` (not under `src/parser/`)
 
-**Tests:** inline `#[cfg(test)]` in `src/schema/ddl_reader.rs`
+**Tests:** inline `#[cfg(test)]` in `db-storage:src/row/schema/ddl_reader.rs`
 
 #### Scenario: Read schema without the parser
 
@@ -594,7 +594,7 @@ The Tier 0 minimal DDL reader (used to decode `sqlite_master` for the READ CORE)
 - WHEN sqlite-rs opens a database and dumps its rows
 - THEN schema decoding MUST still work via the minimal DDL reader
 
-`src/schema/ddl_reader.rs` has zero `use` of any `src/parser/` item (verified). No Cargo feature flag exists yet to gate the parser out, so the feature-gated-build half of this scenario remains unverified; no automated test backs it.
+`db-storage:src/row/schema/ddl_reader.rs` has zero `use` of any `src/parser/` item (verified). No Cargo feature flag exists yet to gate the parser out, so the feature-gated-build half of this scenario remains unverified; no automated test backs it.
 
 #### Scenario: Tolerate unparseable DDL
 
@@ -602,7 +602,7 @@ The Tier 0 minimal DDL reader (used to decode `sqlite_master` for the READ CORE)
 - WHEN the schema is decoded
 - THEN the entry MUST degrade to raw-row access with untyped columns, not an error
 
-**Tests:** `src/schema/ddl_reader.rs::fts5_virtual_table_is_graceful_unknown_shadow_tables_are_readable`, `src/schema/ddl_reader.rs::unparseable_non_virtual_ddl_degrades_gracefully_never_errors`
+**Tests:** `db-storage:src/row/schema/ddl_reader.rs::fts5_virtual_table_is_graceful_unknown_shadow_tables_are_readable`, `db-storage:src/row/schema/ddl_reader.rs::unparseable_non_virtual_ddl_degrades_gracefully_never_errors`
 
 ### Requirement 6: Generator Swap [MAY]
 

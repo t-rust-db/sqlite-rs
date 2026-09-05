@@ -50,7 +50,7 @@ argument (the same logic as diverse-lens verification in MVL).
 | dbsqlfuzz / AFL / OSS-Fuzz | Malformed-input crashes | cargo-fuzz on `decode_record`, `btree_cursor`, `wal_frames`, `parse_select`, `vdbe_exec`, `scalar_functions` (#26) |
 | Anomaly testing (OOM injection, I/O fault, crash tests) | Failure-path bugs | power-cut torture harness (`tests/corpus/crash_torture_test.rs`); fault-injecting VFS impl (the `Vfs` trait is our injection point) |
 | Boundary/property testing | Edge values | proptest roundtrips (#26) |
-| Valgrind/sanitizers | Memory errors | Largely subsumed by Pillar 1 (safe Rust) — crate-wide `#![deny(unsafe_code)]` (#66) means the only `unsafe` for miri to check is the audited `src/sys/{fcntl,termios}.rs` syscall carve-out (ADR-0031, #592), not a codebase-wide concern |
+| Valgrind/sanitizers | Memory errors | Largely subsumed by Pillar 1 (safe Rust) — crate-wide `#![deny(unsafe_code)]` (#66) means the only `unsafe` for miri to check is the audited `src/sys/termios.rs (fcntl left with the VFS to db-storage)` syscall carve-out (ADR-0031, #592), not a codebase-wide concern |
 | Disabled-optimization diff | Optimizer bugs | Future: planner-on vs planner-off result diffing (V4) — full scans as the reference implementation |
 
 ## Requirements
@@ -104,9 +104,9 @@ fuzz target all discharge this claim today: `Cargo.toml`'s
 `tests/fuzz/fuzz_targets/decode_record.rs` sits alongside the
 `btree_cursor.rs` pattern it followed.
 
-**Implementation:** `src/record/error.rs`
+**Implementation:** `db-storage:src/row/record/error.rs`
 
-**Tests:** `src/record/decode.rs::truncated_record_at_every_offset_errors_not_panics`
+**Tests:** `db-storage:src/row/record/decode.rs::truncated_record_at_every_offset_errors_not_panics`
 
 #### Scenario: Structured errors today
 
@@ -114,7 +114,7 @@ fuzz target all discharge this claim today: `Cargo.toml`'s
 - WHEN `decode_record` runs
 - THEN it returns a `RecordError` variant naming the failure, never panics
 
-**Tests:** `src/record/decode.rs::truncated_record_at_every_offset_errors_not_panics`
+**Tests:** `db-storage:src/row/record/decode.rs::truncated_record_at_every_offset_errors_not_panics`
 
 #### Scenario: Compile-time panic-surface gate
 
@@ -163,7 +163,7 @@ container-action exception) are all in place (#26).
 
 ### Requirement 4: Contract Experiment [MAY]
 
-The project MAY run `cargo mvl total` against `src/record/`'s decoder entry
+The project MAY run `cargo mvl total` against `db-storage:src/row/record/`'s decoder entry
 points as a timeboxed experiment (half a day), annotating them
 `#[mvl::total]` and running mvl-rust's panic-scan. Either outcome is
 valuable: a clean pass is real-code validation for mvl-rust; a finding is
@@ -184,10 +184,10 @@ crates.io), and the existing `cargo-mvl-limit` binary's own scope (whole-file
 scan, not annotation-based). This is the "doesn't work" branch the ticket
 anticipated — the real-code-validation value returns once mvl-rust ships a
 way to apply `#[mvl::total]`-style contracts to existing Rust source (or a
-`src/record/` port to `.mvl` itself becomes in scope), whichever comes
+`db-storage:src/row/record/` port to `.mvl` itself becomes in scope), whichever comes
 first; re-attempt then rather than on a fixed date.
 
-**Implementation:** `src/record/decode.rs` (not applicable — see finding above)
+**Implementation:** `db-storage:src/row/record/decode.rs` (not applicable — see finding above)
 
 This requirement has no scenarios to test — the finding above, concluding
 the experiment doesn't apply to the installed mvl-rust v1.8.1, is itself

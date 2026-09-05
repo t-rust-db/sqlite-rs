@@ -20,7 +20,7 @@ never re-deriving semantics the kernel (spec 008) or the b-tree layer
 b-tree-mutation logic of its own — `MakeRecord` reuses spec 003's
 `encode_record` byte-for-byte (as it already did for the read/DISTINCT
 path), and `Insert`/`Delete`/`IdxInsert` are thin operand-marshalling
-wrappers over `src/btree::{insert_row, delete_row, insert_entry}`.
+wrappers over `crate::btree::{insert_row, delete_row, insert_entry}`.
 
 Unlike spec 009's opcodes, `OpenWrite`/`Insert`/`NewRowid` were never
 harvested from a V2-era oracle `EXPLAIN` (V2 predates any write-path
@@ -43,7 +43,7 @@ access paths. A `Vm` built via the pre-existing read-only
 `ExecError::NoDatabase` rather than silently no-op or panic.
 
 **Implementation:** `src/vdbe/exec.rs` (`VmDb`, `Vm::with_writable_db`,
-`execute_with_writable_db`); `src/pager.rs` (`impl PageSource for
+`execute_with_writable_db`); `db-storage:src/row/pager/mod.rs` (`impl PageSource for
 RefCell<Pager>`)
 
 #### Scenario: OpenWrite against a read-only Vm errors instead of silently opening
@@ -243,7 +243,7 @@ change here) — a future codegen ticket sets these operands once it knows.
 `NoConflict` MUST jump to `P2` when no entry in the real index b-tree
 rooted at `CursorSlot::IndexWrite` cursor `P1` has a key whose leading
 columns equal the `P4::Int` (key column count) registers starting at
-`P3` — built on `IndexCursor::seek` (`src/btree/index.rs`), the same
+`P3` — built on `IndexCursor::seek` (`db-storage:src/row/btree/index.rs`), the same
 BINARY-collation-only, linear-scan-from-first-entry cursor Requirement 5
 already uses read-side. On a conflict (fallthrough — no jump), it MUST
 also write the conflicting entry's trailing rowid column into register

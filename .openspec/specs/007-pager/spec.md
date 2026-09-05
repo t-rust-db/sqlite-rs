@@ -13,9 +13,9 @@ Everything in this spec is **Tier 0 READ CORE** — never droppable.
 
 ## Philosophy
 
-`Pager` replaces `VfsPageSource` (spec 003) as the page source `TableCursor`/`IndexCursor` are built against, adding exactly two things `VfsPageSource` doesn't: hot-journal refusal (Requirement 1) and WAL-frame merging (Requirement 2). Everything else — page fetch, page size, reserved bytes — is unchanged, by construction: `Pager` wraps a `VfsPageSource` internally rather than reimplementing page reads. `src/pager/` is not exempt from the `mvl-limit` qualified-subset gate (no `unsafe`/`dyn`/explicit lifetimes); `Pager::open` takes its `Vfs` generically (`<V: Vfs>`), never as `&dyn Vfs`, so the trait-object boundary stays inside `src/vfs/` where it's already accounted for. That generic-parameter shape is the reference pattern for keeping the boundary contained; the VDBE deliberately keeps a second, narrower `dyn` boundary instead (`Rc<dyn PageSource>` in `src/vdbe/{exec,cursor}.rs`, exempted since #90). ADR-0013 considered making `Vm` generic over `P: PageSource` (#114) and rejected it: a `Vm` shares one page source across N open cursors via cheap `Rc` clones, so genericizing would force the no-database constructor path (`Vm::new()`) to name a concrete `P`, drop `Vm`'s `Default` derive, and thread `<P: PageSource>` through every opcode handler — trading a justified trait object for pervasive generic noise without changing runtime dispatch, since real callers would still instantiate `Vm<Rc<dyn PageSource>>`.
+`Pager` replaces `VfsPageSource` (spec 003) as the page source `TableCursor`/`IndexCursor` are built against, adding exactly two things `VfsPageSource` doesn't: hot-journal refusal (Requirement 1) and WAL-frame merging (Requirement 2). Everything else — page fetch, page size, reserved bytes — is unchanged, by construction: `Pager` wraps a `VfsPageSource` internally rather than reimplementing page reads. `db-storage:src/row/pager/` is not exempt from the `mvl-limit` qualified-subset gate (no `unsafe`/`dyn`/explicit lifetimes); `Pager::open` takes its `Vfs` generically (`<V: Vfs>`), never as `&dyn Vfs`, so the trait-object boundary stays inside `db-storage:src/row/vfs/` where it's already accounted for. That generic-parameter shape is the reference pattern for keeping the boundary contained; the VDBE deliberately keeps a second, narrower `dyn` boundary instead (`Rc<dyn PageSource>` in `src/vdbe/{exec,cursor}.rs`, exempted since #90). ADR-0013 considered making `Vm` generic over `P: PageSource` (#114) and rejected it: a `Vm` shares one page source across N open cursors via cheap `Rc` clones, so genericizing would force the no-database constructor path (`Vm::new()`) to name a concrete `P`, drop `Vm`'s `Default` derive, and thread `<P: PageSource>` through every opcode handler — trading a justified trait object for pervasive generic noise without changing runtime dispatch, since real callers would still instantiate `Vm<Rc<dyn PageSource>>`.
 
-Locking was out of scope for both requirements below at V1 (#35/#36): Spike 005 (#8, closed) validated the *approach* — byte-identical `fcntl` locks (journal-mode lock ladder and WAL `-shm` reader-mark protocol) genuinely interoperate with a live stock `sqlite3` process — but implementing it was separate, larger scope than a page-view layer, tracked as a follow-up (#45). #45 shipped the SHARED-lock/busy-detection/WAL-reader-mark slice; the full 5-state lock ladder (`src/vfs/lock.rs`'s `FileLockState`, #357) and its use in hot-journal recovery (Requirement 1's RESERVED-probe clause below, #359) are V5 scope (`.openspec/plan.md`'s V5 Slim block: "Pager: Journal mode DELETE, hot-journal recovery, all 5 lock states"). `Pager` now takes real file locks — this paragraph's older "`Pager` takes no file locks" was accurate at V1 and is superseded.
+Locking was out of scope for both requirements below at V1 (#35/#36): Spike 005 (#8, closed) validated the *approach* — byte-identical `fcntl` locks (journal-mode lock ladder and WAL `-shm` reader-mark protocol) genuinely interoperate with a live stock `sqlite3` process — but implementing it was separate, larger scope than a page-view layer, tracked as a follow-up (#45). #45 shipped the SHARED-lock/busy-detection/WAL-reader-mark slice; the full 5-state lock ladder (`db-storage:src/row/vfs/lock.rs`'s `FileLockState`, #357) and its use in hot-journal recovery (Requirement 1's RESERVED-probe clause below, #359) are V5 scope (`.openspec/plan.md`'s V5 Slim block: "Pager: Journal mode DELETE, hot-journal recovery, all 5 lock states"). `Pager` now takes real file locks — this paragraph's older "`Pager` takes no file locks" was accurate at V1 and is superseded.
 
 ## Requirements
 
@@ -25,9 +25,9 @@ The system MUST detect (never silently ignore) a database that has an adjacent `
 
 A journal confirmed hot by magic alone is not necessarily safe to replay: if another connection already holds RESERVED (or higher) on the main file, that connection is either mid-transaction or already rolling this same journal back itself, and replaying it here too would race it (V5, #359; ADR-0024). `Pager::open` MUST non-blocking-probe RESERVED before recovering — matching stock SQLite's `hasHotJournal`/`sqlite3PagerSharedLock` (`os_unix.c`/`pager.c`) — and MUST fail with `VfsError::Locked` rather than recover if the probe finds it held. When clear, the lock MUST escalate straight from SHARED to EXCLUSIVE, deliberately skipping RESERVED (see `FileLock::escalate_to_exclusive`'s doc comment for why), and every read/write/truncate the probe and the replay perform MUST go through the one fd `Pager::open` already holds the lock on — never a second, independently-opened handle to the same path (ADR-0024's fd-trap rationale).
 
-**Implementation:** `src/pager.rs::Pager::open`
+**Implementation:** `db-storage:src/row/pager/mod.rs::Pager::open`
 
-**Tests:** inline `#[cfg(test)]` in `src/pager.rs`
+**Tests:** inline `#[cfg(test)]` in `db-storage:src/row/pager/mod.rs`
 
 **Corpus:** `tests/corpus/fixtures/journalstates/`
 
@@ -37,7 +37,7 @@ A journal confirmed hot by magic alone is not necessarily safe to replay: if ano
 - WHEN `Pager::open` is called
 - THEN the journal's magic is recognized as hot before any page is read, and Requirement 6's recovery runs rather than the main file's spilled pages being served as committed data
 
-**Tests:** `src/pager.rs::tests::fixtures::hot_journal_fixture_recovers_committed_state`
+**Tests:** `tests/unit/pager_fixtures.rs::hot_journal_fixture_recovers_committed_state`
 
 #### Scenario: A live connection holding RESERVED blocks recovery
 
@@ -45,7 +45,7 @@ A journal confirmed hot by magic alone is not necessarily safe to replay: if ano
 - WHEN `Pager::open` is called
 - THEN it fails with `VfsError::Locked` rather than recovering, and both the journal and the main file are left untouched
 
-**Tests:** `src/pager.rs::tests::hot_journal_open_fails_when_another_connection_holds_reserved`
+**Tests:** `db-storage:src/row/pager/mod.rs::tests::hot_journal_open_fails_when_another_connection_holds_reserved`
 
 #### Scenario: Cold or absent journal opens cleanly
 
@@ -53,15 +53,15 @@ A journal confirmed hot by magic alone is not necessarily safe to replay: if ano
 - WHEN `Pager::open` is called
 - THEN it succeeds
 
-**Tests:** `src/pager.rs::tests::no_journal_opens_cleanly`, `src/pager.rs::tests::zeroed_persist_mode_journal_is_not_hot`, `src/pager.rs::tests::empty_journal_file_is_not_hot`, `src/pager.rs::tests::short_journal_file_is_not_hot`
+**Tests:** `db-storage:src/row/pager/mod.rs::tests::no_journal_opens_cleanly`, `db-storage:src/row/pager/mod.rs::tests::zeroed_persist_mode_journal_is_not_hot`, `db-storage:src/row/pager/mod.rs::tests::empty_journal_file_is_not_hot`, `db-storage:src/row/pager/mod.rs::tests::short_journal_file_is_not_hot`
 
 ### Requirement 2: Page-View Abstraction, Zero Behavior Change [MUST]
 
 `Pager` MUST implement the same `PageSource` trait `VfsPageSource` does, so `TableCursor<Pager>` / `IndexCursor<Pager>` produce byte-identical results to `TableCursor<VfsPageSource>` / `IndexCursor<VfsPageSource>` on every fixture that has no hot journal and no pending WAL — including auto-vacuum databases, where the b-tree cursor's pointer-following traversal never visits the interleaved pointer-map pages directly and therefore needs no pointer-map-specific logic in `Pager`.
 
-**Implementation:** `src/pager.rs::Pager` (`impl PageSource for Pager`)
+**Implementation:** `db-storage:src/row/pager/mod.rs::Pager` (`impl PageSource for Pager`)
 
-**Tests:** inline `#[cfg(test)]` in `src/pager.rs`
+**Tests:** inline `#[cfg(test)]` in `db-storage:src/row/pager/mod.rs`
 
 **Corpus:** `tests/corpus/fixtures/btrees/`, `tests/corpus/fixtures/features/autovacuum.db`
 
@@ -71,7 +71,7 @@ A journal confirmed hot by magic alone is not necessarily safe to replay: if ano
 - WHEN read through `TableCursor<Pager>` instead of `TableCursor<VfsPageSource>`
 - THEN the decoded rows are identical
 
-**Tests:** `src/pager.rs::tests::fixtures::table_single_page_fixture_reads_identically_through_pager`
+**Tests:** `tests/unit/pager_fixtures.rs::table_single_page_fixture_reads_identically_through_pager`
 
 #### Scenario: Auto-vacuum fixture unaffected by pointer-map page
 
@@ -79,15 +79,15 @@ A journal confirmed hot by magic alone is not necessarily safe to replay: if ano
 - WHEN read through `TableCursor<Pager>`
 - THEN the row decodes identically to the non-auto-vacuum case
 
-**Tests:** `src/pager.rs::tests::fixtures::autovacuum_fixture_reads_identically_through_pager`
+**Tests:** `tests/unit/pager_fixtures.rs::autovacuum_fixture_reads_identically_through_pager`
 
 ### Requirement 3: WAL Frame Reading (Read-Only Recovery) [MUST]
 
 For a WAL-mode database with a non-empty, sub-header-length-or-larger `-wal` file, `Pager` MUST parse the WAL header (both checksum-endianness variants — magic `0x377f0682` is native byte order, the common case, `0x377f0683` is always big-endian, per spike #7 finding 2), walk its frames validating checksum and salt, and overlay the latest committed frame per page over the main file's pages. A frame whose salts don't match the header's, or whose checksum doesn't verify, ends the scan (not an error — a torn tail is the normal shape of a WAL file mid-write); everything published by an earlier commit in the same scan survives. No `-shm` file is read — this is quiescent, read-only recovery only (live-writer coexistence is validated as needed by spike 005/#8, closed; implementation tracked as #45). A malformed WAL *header* (bad magic, too short, bad checksum, or a page size that doesn't match the main database's) MUST return `PagerError::Wal`, never panic; a missing or empty `-wal` file (the common case: a fully checkpointed WAL) is not an error and yields no overlay.
 
-**Implementation:** `src/pager/wal.rs`, `src/pager.rs::read_wal_pages`
+**Implementation:** `db-storage:src/row/pager/wal.rs`, `db-storage:src/row/pager/mod.rs::read_wal_pages`
 
-**Tests:** inline `#[cfg(test)]` in `src/pager/wal.rs` and `src/pager.rs`
+**Tests:** inline `#[cfg(test)]` in `db-storage:src/row/pager/wal.rs` and `db-storage:src/row/pager/mod.rs`
 
 **Corpus:** `tests/corpus/fixtures/journalstates/`
 
@@ -97,7 +97,7 @@ For a WAL-mode database with a non-empty, sub-header-length-or-larger `-wal` fil
 - WHEN read through `TableCursor<Pager>`
 - THEN all three rows are visible, matching `sqlite3`
 
-**Tests:** `src/pager.rs::tests::fixtures::wal_pending_fixture_shows_uncheckpointed_rows`
+**Tests:** `tests/unit/pager_fixtures.rs::wal_pending_fixture_shows_uncheckpointed_rows`
 
 #### Scenario: Both checksum-endianness paths decode identically
 
@@ -105,7 +105,7 @@ For a WAL-mode database with a non-empty, sub-header-length-or-larger `-wal` fil
 - WHEN read through `TableCursor<Pager>`
 - THEN the decoded rows are identical to `wal_pending.db`'s
 
-**Tests:** `src/pager.rs::tests::fixtures::wal_pending_bigendian_fixture_decodes_identically`, `src/pager/wal.rs::tests::native_checksum_header_parses`, `src/pager/wal.rs::tests::bigendian_checksum_header_parses`
+**Tests:** `tests/unit/pager_fixtures.rs::wal_pending_bigendian_fixture_decodes_identically`, `db-storage:src/row/pager/wal.rs::tests::native_checksum_header_parses`, `db-storage:src/row/pager/wal.rs::tests::bigendian_checksum_header_parses`
 
 #### Scenario: Stale foreign-generation frame is rejected
 
@@ -113,7 +113,7 @@ For a WAL-mode database with a non-empty, sub-header-length-or-larger `-wal` fil
 - WHEN read through `TableCursor<Pager>`
 - THEN only the two rows from this generation's own commits are visible — the foreign frame's row never surfaces
 
-**Tests:** `src/pager.rs::tests::fixtures::wal_pending_stale_fixture_rejects_foreign_frame`, `src/pager/wal.rs::tests::stale_foreign_frame_is_rejected_on_salt_mismatch`
+**Tests:** `tests/unit/pager_fixtures.rs::wal_pending_stale_fixture_rejects_foreign_frame`, `db-storage:src/row/pager/wal.rs::tests::stale_foreign_frame_is_rejected_on_salt_mismatch`
 
 #### Scenario: Trailing spilled-but-uncommitted frames are ignored
 
@@ -121,7 +121,7 @@ For a WAL-mode database with a non-empty, sub-header-length-or-larger `-wal` fil
 - WHEN read through `TableCursor<Pager>`
 - THEN only the pre-existing committed row is visible — none of the rolled-back insert
 
-**Tests:** `src/pager.rs::tests::fixtures::wal_pending_trailing_fixture_shows_only_committed_row`, `src/pager/wal.rs::tests::trailing_spilled_frames_are_ignored`
+**Tests:** `tests/unit/pager_fixtures.rs::wal_pending_trailing_fixture_shows_only_committed_row`, `db-storage:src/row/pager/wal.rs::tests::trailing_spilled_frames_are_ignored`
 
 #### Scenario: Malformed WAL never panics
 
@@ -129,17 +129,17 @@ For a WAL-mode database with a non-empty, sub-header-length-or-larger `-wal` fil
 - WHEN parsed
 - THEN `WalHeader::parse` and `committed_pages` return errors or empty results, never panic (fuzz target)
 
-**Tests:** `src/pager/wal.rs::tests::too_short_is_err_not_panic`, `src/pager/wal.rs::tests::bad_magic_is_err`, `src/pager/wal.rs::tests::corrupted_header_checksum_is_err`, `src/pager/wal.rs::tests::garbage_input_never_panics`, `tests/fuzz/fuzz_targets/wal_frames.rs`
+**Tests:** `db-storage:src/row/pager/wal.rs::tests::too_short_is_err_not_panic`, `db-storage:src/row/pager/wal.rs::tests::bad_magic_is_err`, `db-storage:src/row/pager/wal.rs::tests::corrupted_header_checksum_is_err`, `db-storage:src/row/pager/wal.rs::tests::garbage_input_never_panics`, `tests/fuzz/fuzz_targets/wal_frames.rs`
 
 ### Requirement 4: Dirty Page Tracking and Flush [MUST]
 
 Unlike Requirements 1-3, this requirement is **Tier 2 WRITE CORE** (V3 phase 1, epic #161, #166) — the pager's first write-path capability, added on top of the read-only Requirements 1-3 above without changing their behavior. `Pager::get_page_mut` MUST return a mutable buffer for a page, transparently reading it first (through the same WAL-overlay-then-file precedence `read_page` already uses) the first time it's requested since the last flush, and caching it as dirty. `Pager::read_page` MUST consult this dirty cache ahead of the WAL overlay, so a page mutated via `get_page_mut` reads back its new bytes immediately through the same `Pager`, even before `flush` runs. `Pager::flush` MUST write every dirty page back to the underlying file (in ascending page-number order — a deterministic default, not a correctness requirement of this requirement alone, since no partial-flush recovery exists in this pager yet; see #172), `fsync` it, and clear the dirty set.
 
-Writing to the underlying file requires a read-write file handle. Rather than open a second file descriptor to the same path alongside the existing read-only one — which would trip the documented "`close()` drops all `fcntl` locks held on that inode, regardless of which fd acquired them" hazard (this spec's Requirement 1 doc, #45) before #45's per-inode fd-cache exists to guard against it — `Pager::open` now acquires its single file handle via the new `Vfs::open_write`/`VfsFile::write_at`/`VfsFile::sync` surface (`WritablePageSource`, `src/vfs/page_source.rs`) instead of `Vfs::open_read`. Every other read-only `PageSource` consumer (`VfsPageSource` itself, used directly by non-`Pager` cursors) is unaffected: it keeps using `Vfs::open_read`, never asking a genuinely read-only filesystem for write access it doesn't need.
+Writing to the underlying file requires a read-write file handle. Rather than open a second file descriptor to the same path alongside the existing read-only one — which would trip the documented "`close()` drops all `fcntl` locks held on that inode, regardless of which fd acquired them" hazard (this spec's Requirement 1 doc, #45) before #45's per-inode fd-cache exists to guard against it — `Pager::open` now acquires its single file handle via the new `Vfs::open_write`/`VfsFile::write_at`/`VfsFile::sync` surface (`WritablePageSource`, `db-storage:src/row/vfs/page_source.rs`) instead of `Vfs::open_read`. Every other read-only `PageSource` consumer (`VfsPageSource` itself, used directly by non-`Pager` cursors) is unaffected: it keeps using `Vfs::open_read`, never asking a genuinely read-only filesystem for write access it doesn't need.
 
-**Implementation:** `src/pager.rs::Pager::get_page_mut`, `src/pager.rs::Pager::flush`, `src/vfs/page_source.rs::WritablePageSource`
+**Implementation:** `db-storage:src/row/pager/mod.rs::Pager::get_page_mut`, `db-storage:src/row/pager/mod.rs::Pager::flush`, `db-storage:src/row/vfs/page_source.rs::WritablePageSource`
 
-**Tests:** inline `#[cfg(test)]` in `src/pager.rs` and `src/vfs.rs`
+**Tests:** inline `#[cfg(test)]` in `db-storage:src/row/pager/mod.rs` and `db-storage:src/row/vfs/mod.rs`
 
 **Corpus:** `tests/corpus/pager_write_test.rs` (shells out to a real, writable `sqlite3`-created fixture rather than a committed corpus file, since this requirement's whole point is writing)
 
@@ -149,7 +149,7 @@ Writing to the underlying file requires a read-write file handle. Rather than op
 - WHEN `get_page_mut(2)` is called and its returned buffer is overwritten, then `read_page(2)` is called before `flush`, then again after `flush`
 - THEN both reads return the new bytes, the untouched page 1 is unaffected, and a freshly-opened `Pager` over the same file also sees the new bytes on page 2 and the original bytes on page 1
 
-**Tests:** `src/pager.rs::tests::get_page_mut_then_flush_roundtrips`, `src/pager.rs::tests::flush_with_no_dirty_pages_is_a_no_op`
+**Tests:** `db-storage:src/row/pager/mod.rs::tests::get_page_mut_then_flush_roundtrips`, `db-storage:src/row/pager/mod.rs::tests::flush_with_no_dirty_pages_is_a_no_op`
 
 #### Scenario: A flushed page still opens in stock `sqlite3`
 
@@ -165,7 +165,7 @@ Writing to the underlying file requires a read-write file handle. Rather than op
 - WHEN bytes are written at an offset and synced
 - THEN a fresh `Vfs::open_read` handle on the same path reads back the new bytes — true for both `UnixVfs` and `MemoryVfs`
 
-**Tests:** `src/vfs.rs::tests::memory_vfs_contract`, `src/vfs.rs::tests::unix_vfs_contract`
+**Tests:** `db-storage:src/row/vfs/mod.rs::tests::memory_vfs_contract`, `db-storage:src/row/vfs/mod.rs::tests::unix_vfs_contract`
 
 ### Requirement 5: Freelist Allocate/Deallocate [MUST]
 
@@ -173,9 +173,9 @@ Tier 2 WRITE CORE (V3 phase 1, epic #161, #167), built on top of Requirement 4's
 
 Refs: 003/Req-2, 007/Req-4.
 
-**Implementation:** `src/pager.rs::Pager::allocate_page`, `src/pager.rs::Pager::deallocate_page`, `src/pager/freelist.rs::TrunkPage`
+**Implementation:** `db-storage:src/row/pager/mod.rs::Pager::allocate_page`, `db-storage:src/row/pager/mod.rs::Pager::deallocate_page`, `db-storage:src/row/pager/freelist.rs::TrunkPage`
 
-**Tests:** inline `#[cfg(test)]` in `src/pager.rs` and `src/pager/freelist.rs`
+**Tests:** inline `#[cfg(test)]` in `db-storage:src/row/pager/mod.rs` and `db-storage:src/row/pager/freelist.rs`
 
 **Corpus:** `tests/corpus/pager_write_test.rs`
 
@@ -185,7 +185,7 @@ Refs: 003/Req-2, 007/Req-4.
 - WHEN `allocate_page` is called
 - THEN it returns `page_count + 1` and the header's page-count field is incremented; no freelist field changes
 
-**Tests:** `src/pager.rs::tests::allocate_with_empty_freelist_extends_file`
+**Tests:** `db-storage:src/row/pager/mod.rs::tests::allocate_with_empty_freelist_extends_file`
 
 #### Scenario: Deallocate then allocate round-trips a single page
 
@@ -193,7 +193,7 @@ Refs: 003/Req-2, 007/Req-4.
 - WHEN a page is deallocated (becoming the sole trunk page) and then allocated again
 - THEN the same page number is returned, and the header's freelist-trunk-page and freelist-page-count fields return to their original (empty) values
 
-**Tests:** `src/pager.rs::tests::deallocate_then_allocate_round_trips_single_page`
+**Tests:** `db-storage:src/row/pager/mod.rs::tests::deallocate_then_allocate_round_trips_single_page`
 
 #### Scenario: Trunk leaves fill before a new trunk is chained
 
@@ -201,7 +201,7 @@ Refs: 003/Req-2, 007/Req-4.
 - WHEN additional pages are deallocated
 - THEN they append to the existing trunk's leaf array, and `allocate_page` pops leaves before ever consuming the trunk page itself; once a trunk is full, the next deallocation chains a new trunk page pointing at the old one
 
-**Tests:** `src/pager.rs::tests::deallocate_appends_to_existing_trunk_leaves`, `src/pager.rs::tests::deallocate_overflows_into_new_trunk_when_full`
+**Tests:** `db-storage:src/row/pager/mod.rs::tests::deallocate_appends_to_existing_trunk_leaves`, `db-storage:src/row/pager/mod.rs::tests::deallocate_overflows_into_new_trunk_when_full`
 
 #### Scenario: Allocate/deallocate round trip still integrity-checks in stock `sqlite3`
 
@@ -217,9 +217,9 @@ Tier 2 WRITE CORE (V3 phase 1, epic #161, #172; the RESERVED-probe/single-fd loc
 
 Refs: 001/Req-4, 007/Req-1, 007/Req-4.
 
-**Implementation:** `src/pager.rs::Pager::flush`, `src/pager.rs::recover_hot_journal`, `src/pager/journal.rs`
+**Implementation:** `db-storage:src/row/pager/mod.rs::Pager::flush`, `db-storage:src/row/pager/mod.rs::recover_hot_journal`, `db-storage:src/row/pager/journal.rs`
 
-**Tests:** inline `#[cfg(test)]` in `src/pager.rs` and `src/pager/journal.rs`
+**Tests:** inline `#[cfg(test)]` in `db-storage:src/row/pager/mod.rs` and `db-storage:src/row/pager/journal.rs`
 
 **Corpus:** `tests/corpus/fixtures/journalstates/hot_journal.db`, `tests/corpus/journal_interop_test.rs`
 
@@ -229,7 +229,7 @@ Refs: 001/Req-4, 007/Req-1, 007/Req-4.
 - WHEN `flush` is called
 - THEN the main file reflects every dirty page, and the `-journal` file (if one was created) no longer exists afterward
 
-**Tests:** `tests/tiers/tier2.rs::t2_journal_transactions_commit_and_rollback`, `src/pager.rs::tests::get_page_mut_then_flush_roundtrips`
+**Tests:** `tests/tiers/tier2.rs::t2_journal_transactions_commit_and_rollback`, `db-storage:src/row/pager/mod.rs::tests::get_page_mut_then_flush_roundtrips`
 
 #### Scenario: A statement that never reaches flush leaves the database unchanged
 
@@ -245,7 +245,7 @@ Refs: 001/Req-4, 007/Req-1, 007/Req-4.
 - WHEN `Pager::open` is called
 - THEN the torn page is restored to its pre-transaction content, and the journal is deleted before `open` returns
 
-**Tests:** `tests/tiers/tier2.rs::t2_journal_transactions_commit_and_rollback`, `src/pager.rs::tests::hot_journal_with_one_record_restores_original_page_and_deletes_journal`, `src/pager/journal.rs::tests::writer_then_recover_restores_original_pages`
+**Tests:** `tests/tiers/tier2.rs::t2_journal_transactions_commit_and_rollback`, `db-storage:src/row/pager/mod.rs::tests::hot_journal_with_one_record_restores_original_page_and_deletes_journal`, `db-storage:src/row/pager/journal.rs::tests::writer_then_recover_restores_original_pages`
 
 #### Scenario: A real sqlite3-written hot journal recovers through our Pager
 
@@ -253,7 +253,7 @@ Refs: 001/Req-4, 007/Req-1, 007/Req-4.
 - WHEN `Pager::open` is called (against a scratch copy — recovery mutates the main file and deletes the journal in place)
 - THEN only the one row genuinely committed before the transaction is visible, and the journal is gone
 
-**Tests:** `src/pager.rs::tests::fixtures::hot_journal_fixture_recovers_committed_state`, `tests/tiers/tier0.rs::t0_hot_journal_recovers_committed_state`
+**Tests:** `tests/unit/pager_fixtures.rs::hot_journal_fixture_recovers_committed_state`, `tests/tiers/tier0.rs::t0_hot_journal_recovers_committed_state`
 
 #### Scenario: A journal we write recovers through a real sqlite3
 
@@ -267,9 +267,9 @@ Refs: 001/Req-4, 007/Req-1, 007/Req-4.
 
 Tier 3 (V6 Slim, epic #354, #386; ADR-0025), built on top of Requirement 3's WAL-frame reading. `checkpoint_passive` MUST copy every committed WAL frame up to the oldest active reader's published mark (`active_wal_reader_marks`, guarded by `claim_wal_checkpoint_lock`) into the main database file, in frame order, then publish the new backfill boundary (`publish_wal_backfill`). It MUST NOT wait for a lagging reader to finish — a reader still pinned to an older frame simply bounds how far a given pass can go (`CheckpointResult::checkpoint_complete = false`), rather than blocking; FULL/RESTART checkpoint modes are out of scope, deferred to V7. A missing, empty, or sub-header-length `-wal` file is not an error: it MUST return a `CheckpointResult` reporting zero frames, already complete. A WAL page size that doesn't match `expected_page_size` MUST return `Err`, never panic or checkpoint a mismatched-page-size WAL.
 
-**Implementation:** `src/pager/checkpoint.rs::checkpoint_passive`
+**Implementation:** `db-storage:src/row/pager/checkpoint.rs::checkpoint_passive`
 
-**Tests:** inline `#[cfg(test)]` in `src/pager/checkpoint.rs`
+**Tests:** inline `#[cfg(test)]` in `db-storage:src/row/pager/checkpoint.rs`
 
 #### Scenario: No WAL file is a complete no-op
 
@@ -277,7 +277,7 @@ Tier 3 (V6 Slim, epic #354, #386; ADR-0025), built on top of Requirement 3's WAL
 - WHEN `checkpoint_passive` runs
 - THEN it returns `CheckpointResult { backfilled_frames: 0, total_frames: 0, checkpoint_complete: true }`
 
-**Tests:** `src/pager/checkpoint.rs::tests::no_wal_file_is_a_complete_no_op`, `src/pager/checkpoint.rs::tests::empty_wal_with_header_only_is_a_complete_no_op`
+**Tests:** `db-storage:src/row/pager/checkpoint.rs::tests::no_wal_file_is_a_complete_no_op`, `db-storage:src/row/pager/checkpoint.rs::tests::empty_wal_with_header_only_is_a_complete_no_op`
 
 #### Scenario: Every frame backfills when no reader is active
 
@@ -285,7 +285,7 @@ Tier 3 (V6 Slim, epic #354, #386; ADR-0025), built on top of Requirement 3's WAL
 - WHEN `checkpoint_passive` runs
 - THEN every frame is copied into the main file and `checkpoint_complete` is `true`
 
-**Tests:** `src/pager/checkpoint.rs::tests::backfills_all_frames_when_no_readers_active`
+**Tests:** `db-storage:src/row/pager/checkpoint.rs::tests::backfills_all_frames_when_no_readers_active`
 
 #### Scenario: An active reader's mark bounds the checkpoint
 
@@ -293,7 +293,7 @@ Tier 3 (V6 Slim, epic #354, #386; ADR-0025), built on top of Requirement 3's WAL
 - WHEN `checkpoint_passive` runs
 - THEN only frames up to that mark are backfilled, and `checkpoint_complete` is `false`
 
-**Tests:** `src/pager/checkpoint.rs::tests::reader_mark_bounds_the_checkpoint`
+**Tests:** `db-storage:src/row/pager/checkpoint.rs::tests::reader_mark_bounds_the_checkpoint`
 
 #### Scenario: A page-size mismatch errors rather than checkpointing garbage
 
@@ -301,7 +301,7 @@ Tier 3 (V6 Slim, epic #354, #386; ADR-0025), built on top of Requirement 3's WAL
 - WHEN `checkpoint_passive` runs
 - THEN it returns `Err`, and the main file is left untouched
 
-**Tests:** `src/pager/checkpoint.rs::tests::page_size_mismatch_is_an_error`
+**Tests:** `db-storage:src/row/pager/checkpoint.rs::tests::page_size_mismatch_is_an_error`
 
 #### Scenario: A second pass with no new frames is a no-op
 
@@ -309,4 +309,4 @@ Tier 3 (V6 Slim, epic #354, #386; ADR-0025), built on top of Requirement 3's WAL
 - WHEN `checkpoint_passive` runs again with no new frames written
 - THEN it reports the same backfill boundary and `checkpoint_complete: true`, writing nothing new
 
-**Tests:** `src/pager/checkpoint.rs::tests::second_pass_with_no_new_frames_is_a_no_op`
+**Tests:** `db-storage:src/row/pager/checkpoint.rs::tests::second_pass_with_no_new_frames_is_a_no_op`

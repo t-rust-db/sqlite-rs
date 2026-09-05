@@ -8,5 +8,4 @@
 //! the crate's sole `#![allow(unsafe_code)]` carve-out: `src/lib.rs`
 //! `#![deny(unsafe_code)]`s everywhere else.
 
-pub mod fcntl;
 pub mod termios;

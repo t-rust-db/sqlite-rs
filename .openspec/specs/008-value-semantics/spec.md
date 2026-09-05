@@ -139,10 +139,10 @@ Unicode; `ß`/`SS` and `é`/`É` do NOT compare equal), or RTRIM (BINARY
 comparison after stripping trailing spaces from both operands, not from
 storage).
 
-**Implementation:** `src/record/collation.rs`; a column/index-column's
+**Implementation:** `db-storage:src/row/record/collation.rs`; a column/index-column's
 declared `COLLATE` (parsed but previously unstored, #500) is carried on
 `TableSchema::column_collations` / `IndexedColumn::collation`
-(`src/schema/ddl_reader.rs`) and consulted by every comparison site that
+(`db-storage:src/row/schema/ddl_reader.rs`) and consulted by every comparison site that
 doesn't spell out an explicit `COLLATE` in the query text — an explicit
 `COLLATE` always wins (`src/codegen/expr/value.rs::expr_collation`).
 
@@ -291,7 +291,7 @@ one-sided-negative-index approximation.
 15-significant-digit rule rather than SQLite's own higher-precision
 `quote()` routine (observed up to ~19 significant digits on irrational
 sums, and itself build-dependent across sqlite3 binaries — see the
-`src/format.rs` REAL-rendering note for the identical divergence already
+`db-storage:src/row/format.rs` REAL-rendering note for the identical divergence already
 scoped out of `.dump`/`-list`, issue #37). Exact-precision `quote()` on
 REAL is tracked as a follow-up, not solved by this requirement.
 

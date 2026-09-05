@@ -19,11 +19,11 @@ The file format is SQLite's real product — frozen until 2050. We implement it 
 
 ### Requirement 1: VFS Abstraction [MUST]
 
-The system MUST provide a virtual filesystem abstraction with a Unix implementation and an in-memory implementation. Both MUST pass an identical test suite. The trait was subsequently extended with locking (`lock_shared`, `src/vfs/lock.rs`) and write methods (`write_at`/`truncate`/`sync`) without breaking consumers, as spike 004 (#8) required.
+The system MUST provide a virtual filesystem abstraction with a Unix implementation and an in-memory implementation. Both MUST pass an identical test suite. The trait was subsequently extended with locking (`lock_shared`, `db-storage:src/row/vfs/lock.rs`) and write methods (`write_at`/`truncate`/`sync`) without breaking consumers, as spike 004 (#8) required.
 
-**Implementation:** `src/vfs.rs`
+**Implementation:** `db-storage:src/row/vfs/mod.rs`
 
-**Tests:** inline #[cfg(test)] in src/vfs.rs
+**Tests:** inline #[cfg(test)] in db-storage:src/row/vfs/mod.rs
 
 #### Scenario: Read at offset
 
@@ -31,7 +31,7 @@ The system MUST provide a virtual filesystem abstraction with a Unix implementat
 - WHEN `read_at(buf, page_size)` is called
 - THEN exactly page 2's bytes are returned
 
-**Tests:** `src/vfs.rs::unix_vfs_contract`
+**Tests:** `db-storage:src/row/vfs/mod.rs::unix_vfs_contract`
 
 #### Scenario: Companion file detection
 
@@ -47,15 +47,15 @@ The system MUST provide a virtual filesystem abstraction with a Unix implementat
 - WHEN the full VFS test suite runs against both
 - THEN results MUST be identical
 
-**Tests:** `src/vfs.rs::memory_vfs_contract`
+**Tests:** `db-storage:src/row/vfs/mod.rs::memory_vfs_contract`
 
 ### Requirement 2: Database Header [MUST]
 
 The system MUST parse and validate the 100-byte database header: magic string, page size (including the `1` = 65536 encoding), read/write versions (journal vs WAL mode detection), reserved bytes per page, text encoding, page count, freelist head and count, schema cookie and format, auto-vacuum largest-root page, user version, and application id. Malformed headers MUST produce errors, never panics.
 
-**Implementation:** `src/header.rs`
+**Implementation:** `db-storage:src/row/header.rs`
 
-**Tests:** inline #[cfg(test)] in src/header.rs
+**Tests:** inline #[cfg(test)] in db-storage:src/row/header.rs
 
 **Corpus:** `tests/corpus/fixtures/pagesizes/`
 
@@ -65,7 +65,7 @@ The system MUST parse and validate the 100-byte database header: magic string, p
 - WHEN the header is parsed
 - THEN a clear "not a SQLite database" error is returned
 
-**Tests:** `src/header.rs::bad_magic_is_rejected`
+**Tests:** `db-storage:src/row/header.rs::bad_magic_is_rejected`
 
 #### Scenario: Page size decoding
 
@@ -73,7 +73,7 @@ The system MUST parse and validate the 100-byte database header: magic string, p
 - WHEN parsed
 - THEN the decoded page sizes are 512, 4096, and 65536 respectively
 
-**Tests:** `src/header.rs::page_size_512, `src/header.rs::page_size_65536_via_one_encoding``
+**Tests:** `db-storage:src/row/header.rs::page_size_512, `db-storage:src/row/header.rs::page_size_65536_via_one_encoding``
 
 #### Scenario: Reserved bytes reduce usable page size
 
@@ -81,7 +81,7 @@ The system MUST parse and validate the 100-byte database header: magic string, p
 - WHEN the usable page size is computed
 - THEN it is `page_size - 12`, and cell content is read within the usable region only
 
-**Tests:** `src/header.rs::reserved_bytes_12`
+**Tests:** `db-storage:src/row/header.rs::reserved_bytes_12`
 
 #### Scenario: WAL mode detection
 
@@ -89,7 +89,7 @@ The system MUST parse and validate the 100-byte database header: magic string, p
 - WHEN the header is parsed
 - THEN the database is reported as WAL-mode
 
-**Tests:** `src/header.rs::wal_journal_mode_detected`
+**Tests:** `db-storage:src/row/header.rs::wal_journal_mode_detected`
 
 #### Scenario: Page-1 offset documentation
 
@@ -103,9 +103,9 @@ The system MUST parse and validate the 100-byte database header: magic string, p
 
 The system MUST decode SQLite's 1–9 byte big-endian varints. The 9-byte form carries a full 64 bits. Malformed input (truncated buffer) MUST return an error.
 
-**Implementation:** `src/record/varint.rs`
+**Implementation:** `db-storage:src/row/record/varint.rs`
 
-**Tests:** inline #[cfg(test)] in src/record/varint.rs
+**Tests:** inline #[cfg(test)] in db-storage:src/row/record/varint.rs
 
 #### Scenario: All lengths decode
 
@@ -113,7 +113,7 @@ The system MUST decode SQLite's 1–9 byte big-endian varints. The 9-byte form c
 - WHEN decoded
 - THEN each yields the correct value and consumed-byte count
 
-**Tests:** `src/record/varint.rs::every_length_from_1_to_9_bytes`, `tests/proptest/record_proptest.rs::encode_decode_varint_roundtrip`
+**Tests:** `db-storage:src/row/record/varint.rs::every_length_from_1_to_9_bytes`, `tests/proptest/record_proptest.rs::encode_decode_varint_roundtrip`
 
 #### Scenario: Nine-byte full width
 
@@ -121,7 +121,7 @@ The system MUST decode SQLite's 1–9 byte big-endian varints. The 9-byte form c
 - WHEN decoded
 - THEN the value is exactly `u64::MAX`
 
-**Tests:** `src/record/varint.rs::every_length_from_1_to_9_bytes`
+**Tests:** `db-storage:src/row/record/varint.rs::every_length_from_1_to_9_bytes`
 
 #### Scenario: Truncated input
 
@@ -129,15 +129,15 @@ The system MUST decode SQLite's 1–9 byte big-endian varints. The 9-byte form c
 - WHEN decoded
 - THEN an error is returned, no panic
 
-**Tests:** `src/record/varint.rs::truncated_input_errors_not_panics`
+**Tests:** `db-storage:src/row/record/varint.rs::truncated_input_errors_not_panics`
 
 ### Requirement 4: Serial Type Decoding [MUST]
 
 The system MUST decode every SQLite serial type: NULL (0), 1/2/3/4/6/8-byte signed big-endian integers (types 1–6), IEEE-754 f64 (7), integer constants 0 and 1 (8/9), BLOB (N≥12, even), TEXT (N≥13, odd). Floats MUST round-trip bit-exact (`f64::to_bits` equality with the oracle) — display formatting is out of scope (spec 001 / step 9).
 
-**Implementation:** `src/record/decode.rs::decode_serial_value`
+**Implementation:** `db-storage:src/row/record/decode.rs::decode_serial_value`
 
-**Tests:** inline #[cfg(test)] in src/record/decode.rs
+**Tests:** inline #[cfg(test)] in db-storage:src/row/record/decode.rs
 
 **Corpus:** `tests/corpus/fixtures/serialtypes/`
 
@@ -147,7 +147,7 @@ The system MUST decode every SQLite serial type: NULL (0), 1/2/3/4/6/8-byte sign
 - WHEN decoded
 - THEN each value is exact
 
-**Tests:** `src/record/decode.rs::integer_widths_and_edge_values`, `tests/proptest/record_proptest.rs::prop_integer_i8_roundtrip`, `tests/proptest/record_proptest.rs::prop_integer_i16_roundtrip`, `tests/proptest/record_proptest.rs::prop_integer_i24_roundtrip`, `tests/proptest/record_proptest.rs::prop_integer_i32_roundtrip`, `tests/proptest/record_proptest.rs::prop_integer_i48_roundtrip`, `tests/proptest/record_proptest.rs::prop_integer_i64_roundtrip`
+**Tests:** `db-storage:src/row/record/decode.rs::integer_widths_and_edge_values`, `tests/proptest/record_proptest.rs::prop_integer_i8_roundtrip`, `tests/proptest/record_proptest.rs::prop_integer_i16_roundtrip`, `tests/proptest/record_proptest.rs::prop_integer_i24_roundtrip`, `tests/proptest/record_proptest.rs::prop_integer_i32_roundtrip`, `tests/proptest/record_proptest.rs::prop_integer_i48_roundtrip`, `tests/proptest/record_proptest.rs::prop_integer_i64_roundtrip`
 
 #### Scenario: Float bit-exactness
 
@@ -155,7 +155,7 @@ The system MUST decode every SQLite serial type: NULL (0), 1/2/3/4/6/8-byte sign
 - WHEN decoded
 - THEN `f64::to_bits()` equals the oracle's stored bits
 
-**Tests:** `src/record/decode.rs::real_edge_values_bit_identical`, `tests/proptest/record_proptest.rs::prop_real_roundtrip_bit_exact_or_nan_to_null`
+**Tests:** `db-storage:src/row/record/decode.rs::real_edge_values_bit_identical`, `tests/proptest/record_proptest.rs::prop_real_roundtrip_bit_exact_or_nan_to_null`
 
 #### Scenario: Constant serial types
 
@@ -171,15 +171,15 @@ The system MUST decode every SQLite serial type: NULL (0), 1/2/3/4/6/8-byte sign
 - WHEN decoded
 - THEN empty values are produced, not errors
 
-**Tests:** `src/record/decode.rs::blob_including_zero_length`, `src/record/decode.rs::text_utf8_including_empty`, `tests/proptest/record_proptest.rs::prop_blob_roundtrip`, `tests/proptest/record_proptest.rs::prop_text_utf8_roundtrip`
+**Tests:** `db-storage:src/row/record/decode.rs::blob_including_zero_length`, `db-storage:src/row/record/decode.rs::text_utf8_including_empty`, `tests/proptest/record_proptest.rs::prop_blob_roundtrip`, `tests/proptest/record_proptest.rs::prop_text_utf8_roundtrip`
 
 ### Requirement 5: Text Encoding [MUST]
 
 The system MUST decode TEXT values in all three database encodings: UTF-8 (1), UTF-16LE (2), UTF-16BE (3), selected by header byte 56.
 
-**Implementation:** `src/record/decode.rs`
+**Implementation:** `db-storage:src/row/record/decode.rs`
 
-**Tests:** inline #[cfg(test)] in src/record/decode.rs
+**Tests:** inline #[cfg(test)] in db-storage:src/row/record/decode.rs
 
 **Corpus:** `tests/corpus/fixtures/encodings/`
 
@@ -189,15 +189,15 @@ The system MUST decode TEXT values in all three database encodings: UTF-8 (1), U
 - WHEN text values are decoded
 - THEN both produce the identical correct string
 
-**Tests:** `src/record/decode.rs::text_utf16le_and_utf16be`
+**Tests:** `db-storage:src/row/record/decode.rs::text_utf16le_and_utf16be`
 
 ### Requirement 6: Record Decoding [MUST]
 
 The system MUST decode complete records: header-size varint, serial-type list, then body values in order. Malformed records (header longer than payload, truncated body) MUST return errors, never panic. The decoder is pure — no I/O.
 
-**Implementation:** `src/record/decode.rs::decode_record`
+**Implementation:** `db-storage:src/row/record/decode.rs::decode_record`
 
-**Tests:** inline #[cfg(test)] in src/record/decode.rs
+**Tests:** inline #[cfg(test)] in db-storage:src/row/record/decode.rs
 
 **Corpus:** `tests/corpus/fixtures/serialtypes/`
 
@@ -215,4 +215,4 @@ The system MUST decode complete records: header-size varint, serial-type list, t
 - WHEN decoded
 - THEN the decoder returns errors and never panics (fuzz target)
 
-**Tests:** `src/record/decode.rs::truncated_record_at_every_offset_errors_not_panics`, `tests/fuzz/fuzz_targets/decode_record.rs`
+**Tests:** `db-storage:src/row/record/decode.rs::truncated_record_at_every_offset_errors_not_panics`, `tests/fuzz/fuzz_targets/decode_record.rs`

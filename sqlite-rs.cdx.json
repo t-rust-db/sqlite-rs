@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-05T06:56:49.000000000Z",
+    "timestamp": "2026-09-05T07:00:33.000000000Z",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -75,11 +75,11 @@
   "components": [
     {
       "type": "library",
-      "bom-ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.4.0#0.4.0",
+      "bom-ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#0.4.1",
       "name": "db-storage",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "scope": "required",
-      "purl": "pkg:cargo/db-storage@0.4.0?vcs_url=git%2Bhttps://github.com/t-rust-db/db-storage%4098a6580daf637dd4e276608d97034ccb15752633"
+      "purl": "pkg:cargo/db-storage@0.4.1?vcs_url=git%2Bhttps://github.com/t-rust-db/db-storage%407ea53e48be26bdcc677df8c5739f8eb3da050ecf"
     },
     {
       "type": "library",
@@ -265,7 +265,7 @@
   ],
   "dependencies": [
     {
-      "ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.4.0#0.4.0",
+      "ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#0.4.1",
       "dependsOn": [
         "registry+https://github.com/rust-lang/crates.io-index#memmap2@0.9.11",
         "registry+https://github.com/rust-lang/crates.io-index#ruzstd@0.7.3"
@@ -274,7 +274,7 @@
     {
       "ref": "path+file://.#0.18.10",
       "dependsOn": [
-        "git+https://github.com/t-rust-db/db-storage?tag=v0.4.0#0.4.0"
+        "git+https://github.com/t-rust-db/db-storage?tag=v0.4.1#0.4.1"
       ]
     },
     {
