@@ -20,6 +20,11 @@ Run any example with `cargo run --example <name>`.
   for a single-binary example — see
   `tests/corpus/wal_concurrent_interop_test.rs` and
   `tests/corpus/wal_write_interop_test.rs` for that.
+- **`movies.rs`** — every other example above is single-table; this one
+  builds a small multi-table database (`directors`/`movies`/`actors`/
+  `movie_cast`) populated with Quentin Tarantino's and the Coen
+  Brothers' filmographies, then runs a 4-table `JOIN` across all of
+  them.
 
 ## Fixtures
 
