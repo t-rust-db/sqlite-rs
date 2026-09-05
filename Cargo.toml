@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 license = "Apache-2.0"
 description = "A binary-compatible Rust replication of SQLite"
-repository = "https://github.com/iheitlager/sqlite-rs"
+repository = "https://github.com/t-rust-db/sqlite-rs"
 documentation = "https://docs.rs/sqlite-rs"
 keywords = ["sqlite", "database", "sql", "embedded"]
 categories = ["database", "database-implementations"]
@@ -307,3 +307,9 @@ path = "tests/tiers/tier2.rs"
 [[test]]
 name = "tier3"
 path = "tests/tiers/tier3.rs"
+
+# Last Lab271/sqlite-rs commit folded into this snapshot (ADR-0039: Lab271 is
+# leading until archived). Updated by `make sync-lab271`; informational, not
+# gated — being behind is expected while the repointing (#1) is in progress.
+[package.metadata.lab271]
+synced = "7701d18144ed4036b3bdbcabe193fe0ef2884629"

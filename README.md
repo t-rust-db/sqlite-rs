@@ -103,6 +103,23 @@ See [.openspec/plan.md](.openspec/plan.md) for the full breakdown and [.openspec
 
 See [docs/performance.md](docs/src/performance.md) for the full progression.
 
+## Syncing from Lab271
+
+This repository is a snapshot of [Lab271/sqlite-rs](https://github.com/Lab271/sqlite-rs),
+which stays **leading for engine behaviour** until it is archived
+([ADR-0039](.openspec/adr/0039-lab271-leading-until-archived.md)): fix
+parser/codegen/VDBE bugs there; do the `db-storage`/`db-core`/`db-cli`
+repointing (#1) here. `Cargo.toml`'s `[package.metadata.lab271] synced`
+names the last Lab271 commit folded in.
+
+```sh
+make sync-lab271          # fetch Lab271 main, show what changed since `synced`
+make sync-lab271 APPLY=1  # stage the delta + bump `synced`, then commit as
+                          #   chore: sync Lab271/sqlite-rs @<sha>
+```
+
+Paths already repointed are excluded via `LAB271_EXCLUDE` in the Makefile.
+
 ## Getting Started
 
 ### Build

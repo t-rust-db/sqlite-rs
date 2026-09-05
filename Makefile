@@ -291,6 +291,27 @@ version: ## Print the crate's current version (Cargo.toml [package].version)
 version-pin: ## Version gate: every sqlite3 pin site agrees with Cargo.toml's [package.metadata.oracle]
 	python3 tools/version_pin.py --strict
 
+LAB271_REMOTE ?= lab271
+LAB271_URL ?= https://github.com/Lab271/sqlite-rs.git
+# Paths already repointed at db-storage/db-core/db-cli (ADR-0039): Lab271's
+# changes there no longer apply here. Grows as #2-#7, #14-#19 land.
+LAB271_EXCLUDE :=
+
+sync-lab271: ## Fetch Lab271/sqlite-rs main and show the delta to fold in (ADR-0039; apply with `make sync-lab271 APPLY=1`)
+	@git remote get-url $(LAB271_REMOTE) >/dev/null 2>&1 || git remote add $(LAB271_REMOTE) $(LAB271_URL)
+	@git fetch -q $(LAB271_REMOTE) main
+	@sha=$$(git rev-parse $(LAB271_REMOTE)/main); \
+	 synced=$$(sed -n 's/^synced *= *"\([^"]*\)".*/\1/p' Cargo.toml); \
+	 echo "synced: $$synced"; echo "lab271: $$sha"; \
+	 if [ "$$sha" = "$$synced" ]; then echo "up to date"; exit 0; fi; \
+	 echo "--- delta (excluding repointed paths) ---"; \
+	 git diff --stat $$synced $(LAB271_REMOTE)/main -- . $(foreach e,$(LAB271_EXCLUDE),':!$(e)'); \
+	 if [ -n "$(APPLY)" ]; then \
+	   git diff $$synced $(LAB271_REMOTE)/main -- . $(foreach e,$(LAB271_EXCLUDE),':!$(e)') | git apply --index; \
+	   sed -i '' "s/^synced *= *\".*\"/synced = \"$$sha\"/" Cargo.toml; git add Cargo.toml; \
+	   echo "staged; commit with: git commit -m 'chore: sync Lab271/sqlite-rs @$${sha%%$${sha#???????}}'"; \
+	 fi
+
 check-mod-files: ## Module-layout gate: no legacy foo/mod.rs files under src/ (#73; use foo.rs instead)
 	@hits=$$(find src -name 'mod.rs'); \
 	if [ -n "$$hits" ]; then \
