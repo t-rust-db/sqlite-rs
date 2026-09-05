@@ -21,12 +21,12 @@ targets = [
 ignore = []
 
 [licenses]
-# MIT dropped: no dependency in this project's resolved graph (normal, build,
-# or dev; the four pinned Unix targets) needs it to satisfy its license
-# expression — every crate resolves under Apache-2.0 alone. Re-add MIT here
-# if a future dependency actually requires it (`cargo deny check licenses`
-# will report the missing allowance instead of a silent pass).
-allow = ["Apache-2.0"]
+# MIT is needed only by MIT-only crates arriving transitively through
+# first-party git dependencies (ADR-0040): `ruzstd` and `twox-hash` via
+# db-storage (until t-rust-db/db-storage#12 makes them optional). Remove MIT
+# again when nothing in the resolved graph requires it (`cargo deny check
+# licenses` reports the missing allowance instead of a silent pass).
+allow = ["Apache-2.0", "MIT"]
 confidence-threshold = 0.8
 
 [bans]
@@ -38,4 +38,5 @@ deny = []
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = []
+# First-party t-rust-db crates only (ADR-0040); one entry per adopted crate.
+allow-git = ["https://github.com/t-rust-db/db-storage"]

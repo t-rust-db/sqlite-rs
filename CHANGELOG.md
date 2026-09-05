@@ -4,6 +4,18 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 **Versioning policy:** one minor version per completed plan phase — the version number tells the plan's story, sub-steps stay inside a phase. V1 (READ CORE) = 0.1.0 through 0.4.0. *(History note: internal iterations briefly numbered 0.4.0–0.6.0 were renumbered into the phase scheme on 14 Aug 2026, before any tag or publication of those versions existed.)*
 
+## [Unreleased]
+
+### Changed
+
+- Org move (t-rust-db/sqlite-rs#1): Lab271/sqlite-rs stays leading for
+  engine behaviour until archived, tracked by snapshot via
+  `make sync-lab271` and `[package.metadata.lab271] synced` (ADR-0039,
+  #12). First-party t-rust-db crates may be pinned git dependencies;
+  `db-storage` (`row` feature, v0.4.0) declared, `deny.toml` allows
+  its source and the MIT license its transitive crates need, SBOMs
+  regenerated (ADR-0040 amending 0030/0031, #13).
+
 ## [0.18.10] - 2026-08-31
 
 ### Fixed

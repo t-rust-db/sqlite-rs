@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-26T10:09:49.000000000Z",
+    "timestamp": "2026-09-05T06:56:49.000000000Z",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -13,9 +13,9 @@
     ],
     "component": {
       "type": "application",
-      "bom-ref": "path+file://.#sqlite-rs@0.18.2",
+      "bom-ref": "path+file://.#0.18.10",
       "name": "sqlite-rs",
-      "version": "0.18.2",
+      "version": "0.18.10",
       "description": "A binary-compatible Rust replication of SQLite",
       "scope": "required",
       "licenses": [
@@ -23,7 +23,7 @@
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/sqlite-rs@0.18.2?download_url=file://.",
+      "purl": "pkg:cargo/sqlite-rs@0.18.10?download_url=file://.",
       "externalReferences": [
         {
           "type": "documentation",
@@ -31,37 +31,37 @@
         },
         {
           "type": "vcs",
-          "url": "https://github.com/iheitlager/sqlite-rs"
+          "url": "https://github.com/t-rust-db/sqlite-rs"
         }
       ],
       "components": [
         {
           "type": "library",
-          "bom-ref": "path+file://.#sqlite-rs@0.18.2 bin-target-0",
+          "bom-ref": "path+file://.#0.18.10 bin-target-0",
           "name": "sqlite_rs",
-          "version": "0.18.2",
-          "purl": "pkg:cargo/sqlite-rs@0.18.2?download_url=file://.#src/lib.rs"
+          "version": "0.18.10",
+          "purl": "pkg:cargo/sqlite-rs@0.18.10?download_url=file://.#src/lib.rs"
         },
         {
           "type": "application",
-          "bom-ref": "path+file://.#sqlite-rs@0.18.2 bin-target-1",
+          "bom-ref": "path+file://.#0.18.10 bin-target-1",
           "name": "lock_probe",
-          "version": "0.18.2",
-          "purl": "pkg:cargo/sqlite-rs@0.18.2?download_url=file://.#tests/helpers/lock_probe.rs"
+          "version": "0.18.10",
+          "purl": "pkg:cargo/sqlite-rs@0.18.10?download_url=file://.#tests/helpers/lock_probe.rs"
         },
         {
           "type": "application",
-          "bom-ref": "path+file://.#sqlite-rs@0.18.2 bin-target-2",
+          "bom-ref": "path+file://.#0.18.10 bin-target-2",
           "name": "sqlite-rs",
-          "version": "0.18.2",
-          "purl": "pkg:cargo/sqlite-rs@0.18.2?download_url=file://.#src/bin/sqlite-rs/main.rs"
+          "version": "0.18.10",
+          "purl": "pkg:cargo/sqlite-rs@0.18.10?download_url=file://.#src/bin/sqlite-rs/main.rs"
         },
         {
           "type": "application",
-          "bom-ref": "path+file://.#sqlite-rs@0.18.2 bin-target-3",
+          "bom-ref": "path+file://.#0.18.10 bin-target-3",
           "name": "write_loop_probe",
-          "version": "0.18.2",
-          "purl": "pkg:cargo/sqlite-rs@0.18.2?download_url=file://.#tests/helpers/write_loop_probe.rs"
+          "version": "0.18.10",
+          "purl": "pkg:cargo/sqlite-rs@0.18.10?download_url=file://.#tests/helpers/write_loop_probe.rs"
         }
       ]
     },
@@ -72,10 +72,238 @@
       }
     ]
   },
-  "components": [],
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.4.0#0.4.0",
+      "name": "db-storage",
+      "version": "0.4.0",
+      "scope": "required",
+      "purl": "pkg:cargo/db-storage@0.4.0?vcs_url=git%2Bhttps://github.com/t-rust-db/db-storage%4098a6580daf637dd4e276608d97034ccb15752633"
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4",
+      "author": "Alex Crichton <alex@alexcrichton.com>",
+      "name": "cfg-if",
+      "version": "1.0.4",
+      "description": "A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted. ",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/cfg-if@1.0.4",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-lang/cfg-if"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189",
+      "name": "libc",
+      "version": "0.2.189",
+      "description": "Raw FFI bindings to platform libraries like libc.",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/libc@0.2.189",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-lang/libc"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#memmap2@0.9.11",
+      "author": "Dan Burkert <dan@danburkert.com>, Yevhenii Reizner <razrfalcon@gmail.com>, The Contributors",
+      "name": "memmap2",
+      "version": "0.9.11",
+      "description": "Cross-platform Rust API for memory-mapped file IO",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d1219ed1b7f229ee7104d281dd01d6802fe28bb6e95d292942c4daacdeb798c0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/memmap2@0.9.11",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/memmap2"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/RazrFalcon/memmap2-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#ruzstd@0.7.3",
+      "author": "Moritz Borcherding <moritz.borcherding@web.de>",
+      "name": "ruzstd",
+      "version": "0.7.3",
+      "description": "A decoder for the zstd compression format",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "fad02996bfc73da3e301efe90b1837be9ed8f4a462b6ed410aa35d00381de89f"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/ruzstd@0.7.3",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/KillingSpark/zstd-rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/KillingSpark/zstd-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#static_assertions@1.1.0",
+      "author": "Nikolai Vazquez",
+      "name": "static_assertions",
+      "version": "1.1.0",
+      "description": "Compile-time assertions to ensure that invariants are met.",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/static_assertions@1.1.0",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/static_assertions/"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/nvzqz/static-assertions-rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/nvzqz/static-assertions-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#twox-hash@1.6.3",
+      "author": "Jake Goulding <jake.goulding@gmail.com>",
+      "name": "twox-hash",
+      "version": "1.6.3",
+      "description": "A Rust implementation of the XXHash and XXH3 algorithms",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/twox-hash@1.6.3",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/twox-hash/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/shepmaster/twox-hash"
+        }
+      ]
+    }
+  ],
   "dependencies": [
     {
-      "ref": "path+file://.#sqlite-rs@0.18.2"
+      "ref": "git+https://github.com/t-rust-db/db-storage?tag=v0.4.0#0.4.0",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#memmap2@0.9.11",
+        "registry+https://github.com/rust-lang/crates.io-index#ruzstd@0.7.3"
+      ]
+    },
+    {
+      "ref": "path+file://.#0.18.10",
+      "dependsOn": [
+        "git+https://github.com/t-rust-db/db-storage?tag=v0.4.0#0.4.0"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4"
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189"
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#memmap2@0.9.11",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#ruzstd@0.7.3",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#twox-hash@1.6.3"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#static_assertions@1.1.0"
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#twox-hash@1.6.3",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4",
+        "registry+https://github.com/rust-lang/crates.io-index#static_assertions@1.1.0"
+      ]
     }
   ]
 }

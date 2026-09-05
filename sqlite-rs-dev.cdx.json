@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-26T10:09:49.000000000Z",
+    "timestamp": "2026-09-05T06:56:49.000000000Z",
     "tools": [
       {
         "vendor": "sqlite-rs",
@@ -13,20 +13,20 @@
     ],
     "component": {
       "type": "application",
-      "bom-ref": "pkg:cargo/sqlite-rs@0.18.2",
+      "bom-ref": "pkg:cargo/sqlite-rs@0.18.10",
       "name": "sqlite-rs",
-      "version": "0.18.2",
+      "version": "0.18.10",
       "licenses": [
         {
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/sqlite-rs@0.18.2"
+      "purl": "pkg:cargo/sqlite-rs@0.18.10"
     },
     "properties": [
       {
         "name": "sqlite-rs:generated-at-commit",
-        "value": "feccb35933af4e0c7b34c040ace578ce7433ea0e"
+        "value": "5a06ffbeea0c0f2e7f5d6d5738c3aea19bf1d7af"
       }
     ]
   },
@@ -205,7 +205,7 @@
       "bom-ref": "pkg:cargo/cfg-if@1.0.4",
       "name": "cfg-if",
       "version": "1.0.4",
-      "scope": "optional",
+      "scope": "required",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"
@@ -381,6 +381,15 @@
         }
       ],
       "purl": "pkg:cargo/crypto-common@0.1.7"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/db-storage@0.4.0",
+      "name": "db-storage",
+      "version": "0.4.0",
+      "scope": "required",
+      "licenses": [],
+      "purl": "pkg:cargo/db-storage@0.4.0"
     },
     {
       "type": "library",
@@ -647,7 +656,7 @@
       "bom-ref": "pkg:cargo/libc@0.2.189",
       "name": "libc",
       "version": "0.2.189",
-      "scope": "optional",
+      "scope": "required",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"
@@ -706,6 +715,19 @@
         }
       ],
       "purl": "pkg:cargo/memchr@2.8.3"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/memmap2@0.9.11",
+      "name": "memmap2",
+      "version": "0.9.11",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/memmap2@0.9.11"
     },
     {
       "type": "library",
@@ -1086,6 +1108,19 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/ruzstd@0.7.3",
+      "name": "ruzstd",
+      "version": "0.7.3",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/ruzstd@0.7.3"
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/same-file@1.0.6",
       "name": "same-file",
       "version": "1.0.6",
@@ -1190,6 +1225,19 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/static_assertions@1.1.0",
+      "name": "static_assertions",
+      "version": "1.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/static_assertions@1.1.0"
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/syn@2.0.119",
       "name": "syn",
       "version": "2.0.119",
@@ -1239,6 +1287,19 @@
         }
       ],
       "purl": "pkg:cargo/tinytemplate@1.2.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/twox-hash@1.6.3",
+      "name": "twox-hash",
+      "version": "1.6.3",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/twox-hash@1.6.3"
     },
     {
       "type": "library",

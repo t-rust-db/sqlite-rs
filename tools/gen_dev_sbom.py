@@ -14,7 +14,7 @@ dependencies" table needed a machine-readable home. `make deny`/`make
 audit`/`cargo vet` already scan this full closure; this SBOM makes that
 closure legible as CycloneDX (per its own component `scope`: `required`
 for the production graph reachable from the root by normal-only edges —
-currently empty, since #563 — and `optional` for everything only reached
+non-empty again since ADR-0040 (first-party git deps); empty from #563 until then — and `optional` for everything only reached
 via a dev/build edge somewhere in the chain).
 
 Run via `make sbom-dev`. Reads `cargo metadata --format-version 1`
