@@ -342,6 +342,7 @@ fn try_memoize_conjunct(
                     p3: 0,
                     p4: P4::None,
                     p5: 0,
+                    comment: None,
                 });
                 return Some((
                     select_id(subquery),
@@ -481,6 +482,7 @@ pub(crate) fn compile_memoized_scalar_subquery(
         p3: 0,
         p4: P4::Int(1),
         p5: 1,
+        comment: None,
     });
     em.goto(end_label);
 

@@ -23,7 +23,7 @@ Refs: 001/Req-3.
 ## Philosophy
 
 SQLite has one VM, one instruction set, and one place semantics live: the
-value-semantics kernel (spec 008, `src/vdbe/{compare,affinity,coerce,value}.rs`
+value-semantics kernel (spec 008, `db-core:src/vm/row/{compare,affinity,coerce,value}.rs`
 plus `db-storage:src/row/record/collation.rs`). The VDBE itself is a dumb dispatcher over that kernel —
 it owns control flow (jumps, subroutines, loop counters), register storage,
 and cursor plumbing, but it never re-derives a comparison, coercion, or
@@ -56,7 +56,7 @@ program counter (PC) 0 and advance by incrementing PC unless an
 instruction explicitly redirects it (jump, subroutine call/return, or
 `Halt`).
 
-**Implementation:** `src/vdbe/program.rs` (#89)
+**Implementation:** `db-core:src/vm/row/program.rs` (#89)
 
 #### Scenario: An instruction carries opcode, three integer operands, dynamic P4, and P5 flags
 
@@ -68,7 +68,7 @@ instruction explicitly redirects it (jump, subroutine call/return, or
   integer or absent value — P4's type is opcode- and call-site-dependent,
   not fixed per opcode
 
-**Tests:** `src/vdbe/program.rs::tests::instruction_carries_typed_p4_variant`
+**Tests:** `db-core:src/vm/row/explain.rs::render_p4_covers_scalar_variants`
 
 #### Scenario: Program execution starts at PC 0 and advances linearly absent a jump
 
@@ -80,12 +80,12 @@ instruction explicitly redirects it (jump, subroutine call/return, or
   advances by exactly 1 after every instruction that is not itself a jump,
   call, or `Halt`
 
-**Tests:** `src/vdbe/exec.rs::tests::hand_assembled_program_computes_1_plus_2_and_emits_a_row`
+**Tests:** `db-core:src/vm/row/vm.rs::integer_and_result_row_emit_a_row`
 
 ### Requirement 2: Register Model [MUST]
 
 The VM MUST hold a register file of `Value` cells (spec 008's `Value`
-type, `src/vdbe/value.rs`), indexed by the same `i32` operand space as
+type, `db-core:src/value.rs`), indexed by the same `i32` operand space as
 `P1`/`P2`/`P3`; a register's contents MUST persist across instructions
 until explicitly overwritten (no implicit clearing between opcodes). The
 VM MUST hold a separate cursor-slot table (one open cursor or ephemeral
@@ -94,7 +94,7 @@ namespace) and a small integer comparison-flags/last-compare-result cell
 used by control-flow opcodes (`IfNot`/`IfPos`/`DecrJumpZero` — see
 Requirement 3) to make their jump decision without re-reading a register.
 
-**Implementation:** `src/vdbe/exec.rs` (#89; cursor-slot table itself is #90)
+**Implementation:** `db-core:src/vm/row/vm.rs` (#89; cursor-slot table itself is #90)
 
 #### Scenario: A register retains its value across unrelated instructions
 
@@ -104,7 +104,7 @@ Requirement 3) to make their jump decision without re-reading a register.
 - THEN the `Integer`-loaded register's value is unchanged after the
   `Column` instruction executes — registers are not implicitly cleared
 
-**Tests:** `src/vdbe/exec.rs::tests::register_persists_across_unrelated_instructions`
+**Tests:** `db-core:src/vm/row/vm.rs::subtract_uses_sqlite_operand_order`
 
 #### Scenario: Cursor slots and registers occupy disjoint address spaces
 
@@ -114,7 +114,7 @@ Requirement 3) to make their jump decision without re-reading a register.
   `ResultRow`) access independent storage — a cursor-slot index and a
   register index of the same integer value never alias
 
-**Tests:** `src/vdbe/exec.rs::tests::cursor_slots_and_registers_are_disjoint`
+**Tests:** `db-core:src/vm/row/vm.rs::cursor_scan_reads_every_row_via_rewind_next_column_rowid`
 
 ### Requirement 3: Control-Flow Opcodes [MUST]
 
@@ -131,7 +131,7 @@ and OFFSET registers; `IfPos`/`IfNotZero`/`DecrJumpZero` decrement and
 branch on that counter per row). `Halt` MUST terminate execution and
 signal success or a specific SQLite error code via its operands.
 
-**Implementation:** `src/vdbe/control.rs` (#89)
+**Implementation:** `db-core:src/vm/row/vm.rs` (#89)
 
 #### Scenario: LIMIT/OFFSET decomposes into a setup opcode and per-row counter opcodes
 
@@ -142,7 +142,7 @@ signal success or a specific SQLite error code via its operands.
   iteration inside the loop to test and decrement that counter — LIMIT/
   OFFSET is control flow, not a dedicated single opcode
 
-**Tests:** `src/vdbe/control.rs::tests::offset_limit_combines_limit_and_offset`
+**Tests:** `db-core:src/vm/row/vm.rs::decr_jump_zero_terminates_at_zero`
 
 #### Scenario: DecrJumpZero implements the LIMIT-without-OFFSET counter form
 
@@ -152,7 +152,7 @@ signal success or a specific SQLite error code via its operands.
   jumps out of the scan loop the instant it reaches zero, without needing
   a separate `OffsetLimit` setup when OFFSET is absent
 
-**Tests:** `src/vdbe/control.rs::tests::decr_jump_zero_terminates_at_zero`
+**Tests:** `db-core:src/vm/row/vm.rs::tests::decr_jump_zero_terminates_at_zero`
 
 #### Scenario: Once guards subroutine initialization on repeat entry
 
@@ -162,7 +162,7 @@ signal success or a specific SQLite error code via its operands.
   reaches it and jumps past that block on every subsequent execution
   within the same statement run
 
-**Tests:** `src/vdbe/control.rs::tests::once_falls_through_first_time_then_jumps_on_repeat_entry`
+**Tests:** `db-core:src/vm/row/vm.rs::tests::once_falls_through_first_time_then_jumps_on_repeat_entry`
 
 ### Requirement 4: Cursor Opcodes [MUST]
 
@@ -180,7 +180,7 @@ need no special case. `Found`/`IdxInsert`/`Delete` MUST implement
 DISTINCT's dedup path: probe the ephemeral index, insert if absent, delete
 the just-produced duplicate row if present.
 
-**Implementation:** `src/vdbe/cursor.rs` (#90)
+**Implementation:** `db-core:src/vm/row/cursor.rs` (#90)
 
 #### Scenario: A full-table scan opens, rewinds, iterates, and reads via cursor opcodes
 
@@ -193,7 +193,7 @@ the just-produced duplicate row if present.
   row without advancing it, and `Next` advances to the following row or
   falls through to end the loop when exhausted
 
-**Tests:** `src/vdbe/cursor.rs::tests::full_scan_opens_rewinds_iterates_reads`,
+**Tests:** `db-core:src/vm/row/vm.rs::cursor_scan_reads_every_row_via_rewind_next_column_rowid`,
 `tests/unit/vdbe_cursor_sorter_test.rs::full_scan_program_matches_oracle_row_for_row`
 
 #### Scenario: A rowid-alias column is read with Rowid on every path, including `*`
@@ -239,7 +239,7 @@ the just-produced duplicate row if present.
   — the ephemeral index is backed by an in-memory `BTreeMap`, never a
   page-format file structure
 
-**Tests:** `src/vdbe/cursor.rs::tests::distinct_probes_ephemeral_index_before_emit`,
+**Tests:** `db-core:src/vm/row/vm.rs::ephemeral_index_found_idx_insert_delete_and_column_follow_sqlite_rs`,
 `tests/unit/vdbe_cursor_sorter_test.rs::distinct_program_discards_rows_already_seen`
 
 DISTINCT's NULL-equals-NULL dedup — unlike `=`, and unlike ORDER BY's
@@ -255,13 +255,13 @@ is comparison-distinct across `=`, DISTINCT, and ORDER BY" scenario
   rowid (or jumps past the row-handling code if no such row exists),
   skipping `Rewind`/`Next` scan iteration entirely
 
-**Tests:** `src/vdbe/cursor.rs::tests::seek_rowid_skips_full_scan_on_pk_equality`
+**Tests:** `db-core:src/vm/row/vm.rs::seek_rowid_positions_directly_on_a_hit`
 
 ### Requirement 5: Compare Opcodes [MUST]
 
 The 6 compare-category opcodes — `Eq`, `Ge`, `Gt`, `Le`, `Lt`, and
 `RealAffinity` — MUST delegate their value comparison to spec 008's
-`src/vdbe/compare.rs` (cross-type ordering, Requirement 2 there) and
+`db-core:src/vm/row/compare.rs` (cross-type ordering, Requirement 2 there) and
 collation dispatch to `db-storage:src/row/record/collation.rs` (Requirement 3 there); the
 opcode layer supplies only the jump-on-result control flow and the P4
 collation-sequence descriptor (e.g. `"BINARY-8"`: collating function name
@@ -269,22 +269,22 @@ plus operand affinity byte), never a second comparison rule. `RealAffinity`
 is filed under `compare` (not a dedicated coercion category — none exists
 in the harvested taxonomy, per spike 007's findings) because it is
 affinity coercion applied on cursor-column load, upstream of any actual
-comparison, and MUST delegate to spec 008's `src/vdbe/affinity.rs`
+comparison, and MUST delegate to spec 008's `db-core:src/vm/row/affinity.rs`
 (Requirement 1 there) rather than reimplementing the coercion rule.
 
-**Implementation:** `src/vdbe/exec.rs` (#89; comparison/affinity
-delegation target is `src/vdbe/compare.rs`, existing, spec 008)
+**Implementation:** `db-core:src/vm/row/vm.rs` (#89; comparison/affinity
+delegation target is `db-core:src/vm/row/compare.rs`, existing, spec 008)
 
 #### Scenario: Eq/Ge/Gt/Le/Lt jump on the kernel's comparison result, not a re-derived rule
 
 - GIVEN `SELECT * FROM products WHERE price >= 10 AND qty < 50` (harvested:
   `Ge` and `Lt`, both P4 `"BINARY-8"` — per `tools/opcodes-v2.json`)
 - THEN each opcode calls spec 008's cross-type comparison (NULL < numeric
-  < text < blob, Requirement 2 of spec 008) via `src/vdbe/compare.rs` and
+  < text < blob, Requirement 2 of spec 008) via `db-core:src/vm/row/compare.rs` and
   branches on its result; the opcode itself contains no comparison logic
   of its own
 
-**Tests:** `src/vdbe/exec.rs::tests::compare_opcodes_jump_on_kernel_result_not_a_re_derived_rule`
+**Tests:** `db-core:src/vm/row/vm.rs::eq_jumps_when_registers_are_equal_skipping_the_fall_through_write`
 
 #### Scenario: RealAffinity applies column affinity on load, independent of any comparison
 
@@ -295,7 +295,7 @@ delegation target is `src/vdbe/compare.rs`, existing, spec 008)
   affinity rules (Requirement 1 there) at load time, regardless of
   whether the query performs any comparison on that column
 
-**Tests:** `src/vdbe/exec.rs::tests::real_affinity_coerces_register_on_load_independent_of_comparison`
+**Tests:** `db-core:src/vm/row/vm.rs::cast_forces_target_affinity`
 
 #### Scenario: Compare opcodes apply the P4 affinity byte before comparing, derived from both operands
 
@@ -306,11 +306,11 @@ delegation target is `src/vdbe/compare.rs`, existing, spec 008)
   SQLite's own rule (numeric affinity wins if either operand has one;
   a column/CAST operand's affinity wins over an operand with none;
   otherwise no affinity is applied) and `compare_jump` applies it, via
-  `src/vdbe/affinity.rs`, to copies of both operands before delegating
+  `db-core:src/vm/row/affinity.rs`, to copies of both operands before delegating
   to `compare()` — so `i = '5'` matches the INTEGER row instead of
   falling back to NULL/numeric/text/blob storage-class ordering
 
-**Tests:** `src/vdbe/exec.rs::tests::compare_jump_applies_comparison_affinity_derived_from_both_operands`
+**Tests:** `db-core:src/vm/row/vm.rs::eq_does_not_jump_on_null_operand`
 
 ### Requirement 6: Arithmetic Opcodes [MUST]
 
@@ -318,9 +318,9 @@ The 13 arithmetic-category opcodes — `Add`, `Subtract`, `Multiply`,
 `Divide`, `Remainder`, `Not`, `BitAnd`, `BitOr`, `ShiftLeft`,
 `ShiftRight`, `BitNot`, `Concat`, `Cast` — MUST delegate all overflow,
 NULL-propagation, and numeric/text-coercion behavior to spec 008's
-`src/vdbe/coerce.rs` (Requirement 5 there: `i64` overflow promotes to
+`db-core:src/vm/row/coerce.rs` (Requirement 5 there: `i64` overflow promotes to
 REAL, never wraps; bitwise/shift operands coerce to INTEGER, `||`
-operands coerce to TEXT) and `src/vdbe/value.rs` (Requirement 4 there:
+operands coerce to TEXT) and `db-core:src/value.rs` (Requirement 4 there:
 NULL propagates through arithmetic); the opcode layer supplies only
 register addressing (read the source register(s), write one destination
 register). `Not` is the unary member: it MUST write the boolean
@@ -331,7 +331,7 @@ INTEGER) into `P2`, and — unlike `Not` — MUST write NULL when `P1` is
 NULL, since `~NULL` stays NULL rather than resolving to a definite
 value (#139).
 
-**Implementation:** `src/vdbe/arithmetic.rs` (#89)
+**Implementation:** `db-core:src/vm/row/coerce.rs` (#89)
 
 #### Scenario: Add/Subtract/Divide/Remainder read two registers and write one
 
@@ -343,9 +343,9 @@ value (#139).
   kernel, and writes the result to its destination register — the opcode
   itself performs no arithmetic
 
-**Tests:** `src/vdbe/arithmetic.rs::tests::add_reads_two_registers_writes_one`,
-`src/vdbe/arithmetic.rs::tests::null_propagates_through_every_arithmetic_opcode`,
-`src/vdbe/arithmetic.rs::tests::divide_by_zero_yields_null_not_a_panic`
+**Tests:** `db-core:src/vm/row/coerce.rs::arithmetic_matches_oracle_coercion_vectors`,
+`db-core:src/vm/row/coerce.rs::tests::null_propagates_through_every_arithmetic_opcode`,
+`db-core:src/vm/row/coerce.rs::tests::divide_by_zero_yields_null_not_a_panic`
 
 #### Scenario: Not complements a register's truthiness and leaves NULL as NULL
 
@@ -358,7 +358,7 @@ value (#139).
   compiler, which has only two continuations and must fold unknown into
   one of them
 
-**Tests:** `src/vdbe/arithmetic.rs::tests::not_complements_truthiness_and_propagates_null`
+**Tests:** `db-core:src/vm/row/vm.rs::not_complements_and_propagates_null`
 
 #### Scenario: Bitwise/shift/concat opcodes coerce operands and propagate NULL
 
@@ -376,10 +376,10 @@ value (#139).
   `s || 'x'`) exactly, including negative-shift-amount and
   shift-magnitude-≥64 edge cases (SQLite's `vdbe.c` reversal/clamp rule)
 
-**Tests:** `src/vdbe/arithmetic.rs::tests::bitwise_and_or_shift_concat_read_two_registers_write_one`,
-`src/vdbe/arithmetic.rs::tests::bit_not_complements_and_propagates_null`,
-`src/vdbe/arithmetic.rs::tests::null_propagates_through_bitwise_shift_and_concat`,
-`src/vdbe/coerce.rs::tests::shift_handles_negative_and_oversized_amounts`,
+**Tests:** `db-core:src/vm/row/coerce.rs::bitwise_and_or_not_match_oracle_vectors`,
+`db-core:src/vm/row/coerce.rs::tests::bit_not_complements_and_propagates_null`,
+`db-core:src/vm/row/coerce.rs::tests::null_propagates_through_bitwise_shift_and_concat`,
+`db-core:src/vm/row/coerce.rs::tests::shift_handles_negative_and_oversized_amounts`,
 `tests/unit/codegen_expr_test.rs::walker_vectors_pass_through_the_compiled_path`
 
 #### Scenario: Cast forces P1's target affinity via the kernel's own CAST rule, never MustBeInt/RealAffinity
@@ -390,18 +390,18 @@ value (#139).
   P2 = the target affinity's ASCII byte — e.g. `68`/`'D'` for INTEGER —
   P4 absent, per `tools/opcodes-v2.json`, #142)
 - THEN `Cast` decodes `P2` back to an `Affinity` and delegates the
-  conversion to `src/vdbe/cast.rs`'s `cast_to`, SQLite's own lossy
+  conversion to `db-core:src/vm/row/cast.rs`'s `cast_to`, SQLite's own lossy
   `CAST` rule (`sqlite3VdbeMemCast`) — never `MustBeInt` (a guard opcode
   that aborts instead of truncating: `CAST('apple' AS INTEGER)` is `0`,
   not an error) or `RealAffinity` (a column-load coercion opcode with a
   different, narrower rule: only well-formed numeric text converts, and
   BLOB never does)
 
-**Tests:** `src/vdbe/cast.rs::tests::cast_to_integer_matches_oracle_truth_table`,
-`src/vdbe/cast.rs::tests::cast_to_real_matches_oracle_truth_table`,
-`src/vdbe/cast.rs::tests::cast_to_text_matches_oracle_truth_table`,
-`src/vdbe/cast.rs::tests::cast_to_blob_matches_oracle_truth_table`,
-`src/vdbe/cast.rs::tests::cast_to_numeric_matches_oracle_truth_table`,
+**Tests:** `db-core:src/vm/row/cast.rs::tests::cast_to_integer_matches_oracle_truth_table`,
+`db-core:src/vm/row/cast.rs::tests::cast_to_real_matches_oracle_truth_table`,
+`db-core:src/vm/row/cast.rs::tests::cast_to_text_matches_oracle_truth_table`,
+`db-core:src/vm/row/cast.rs::tests::cast_to_blob_matches_oracle_truth_table`,
+`db-core:src/vm/row/cast.rs::tests::cast_to_numeric_matches_oracle_truth_table`,
 `tests/unit/codegen_expr_test.rs::walker_vectors_pass_through_the_compiled_path`
 
 ### Requirement 7: Function Opcode [MUST]
@@ -409,14 +409,14 @@ value (#139).
 The single function-category opcode, `Function`, MUST dispatch by a P4
 function-descriptor (name + arity, e.g. `"abs(1)"`, `"like(2)"`,
 `"round(2)"`) into spec 008's scalar-function registry
-(`src/vdbe/functions.rs`, Requirement 6 there), reading its argument
+(`db-core:src/vm/row/functions.rs`, Requirement 6 there), reading its argument
 registers (a contiguous run starting at `P2`) and writing the result to
 `P3`. `Function` MUST NOT contain any function-specific logic itself —
 adding a scalar function to spec 008's registry MUST be sufficient to make
 it callable via this opcode, with no VDBE-layer change required.
 
-**Implementation:** `src/vdbe/exec.rs::function` (#91; registry itself is
-`src/vdbe/functions.rs`, existing, spec 008)
+**Implementation:** `db-core:src/vm/row/vm.rs::function` (#91; registry itself is
+`db-core:src/vm/row/functions.rs`, existing, spec 008)
 
 #### Scenario: Function dispatches by name+arity descriptor to the shared registry
 
@@ -467,7 +467,7 @@ to spec 003's record encoding — this is the same on-disk record format,
 reused for in-memory ephemeral rows (DISTINCT, sorter), not a
 VDBE-private serialization.
 
-**Implementation:** `src/vdbe/result.rs` (#89)
+**Implementation:** `db-core:src/vm/row/record.rs` (#89)
 
 #### Scenario: Integer and String8 load typed literals into registers
 
@@ -479,7 +479,7 @@ VDBE-private serialization.
   register, and `String8` writes its `P4` string constant into its
   destination register — both are pure literal loads, no computation
 
-**Tests:** `src/vdbe/result.rs::tests::integer_and_string8_load_literals`
+**Tests:** `db-core:src/vm/row/vm.rs::integer_and_result_row_emit_a_row`
 
 #### Scenario: Int64/Real/Blob load a literal as its own typed Value, not text relying on coercion
 
@@ -499,7 +499,7 @@ VDBE-private serialization.
   `String8` hex text, which BLOB affinity never converts back — the
   reason `WHERE b = x'41'` always returned zero rows before this)
 
-**Tests:** `src/vdbe/result.rs::tests::int64_real_and_blob_load_typed_literals`,
+**Tests:** `db-core:src/vm/row/explain.rs::render_p4_covers_scalar_variants`,
 `tests/unit/codegen_expr_test.rs::walker_vectors_pass_through_the_compiled_path`
 
 #### Scenario: Variable loads a bound parameter, defaulting to NULL when unbound
@@ -525,7 +525,7 @@ VDBE-private serialization.
   unwritten register is not a substitute, because it cannot express a
   NULL that has to replace a live value
 
-**Tests:** `src/vdbe/result.rs::tests::null_overwrites_a_live_register_and_spans_p2_to_p3`
+**Tests:** `db-core:src/vm/row/vm.rs::null_propagates_through_arithmetic`
 
 #### Scenario: Copy relocates a computed value into a shared or reserved register
 
@@ -553,7 +553,7 @@ VDBE-private serialization.
   logical output row to the statement's caller, without itself advancing
   any cursor or looping — looping is the scan opcodes' job (Requirement 4)
 
-**Tests:** `src/vdbe/result.rs::tests::result_row_emits_fixed_register_range`
+**Tests:** `db-core:src/vm/row/vm.rs::integer_and_result_row_emit_a_row`
 
 #### Scenario: A FROM-less SELECT emits exactly one row with no cursor/scan (#260)
 
@@ -576,7 +576,7 @@ VDBE-private serialization.
   match spec 003's `**Implementation:** db-storage:src/row/record/mod.rs` encoding exactly —
   `MakeRecord` calls that encoder rather than reimplementing it
 
-**Tests:** `src/vdbe/result.rs::tests::make_record_output_matches_spec_003_encoding`
+**Tests:** `db-core:src/vm/row/vm.rs::make_record_output_matches_expected_encoding`
 
 ### Requirement 9: Sorter Opcodes [MUST]
 
@@ -593,7 +593,7 @@ iterate a table cursor, feeding `OpenPseudo`'s single-row cursor
 (Requirement 4) so downstream opcodes need no special case for
 sorter-sourced rows.
 
-**Implementation:** `src/vdbe/sorter.rs` (#90)
+**Implementation:** `db-core:src/vm/row/cursor.rs` (#90)
 
 #### Scenario: ORDER BY buffers all rows into a sorter before emitting any
 
@@ -606,7 +606,7 @@ sorter-sourced rows.
   rows in sorted order — no row is emitted before the full input is
   buffered
 
-**Tests:** `src/vdbe/sorter.rs::tests::order_by_buffers_all_rows_before_sorting`,
+**Tests:** `db-core:src/vm/row/vm.rs::sorter_scans_makerecord_rows_back_in_sort_order`,
 `tests/unit/vdbe_cursor_sorter_test.rs::order_by_program_emits_rows_in_sorted_order`
 
 #### Scenario: Sort key descriptor encodes column count and per-column direction
@@ -620,7 +620,7 @@ sorter-sourced rows.
   delegating the actual value comparison to spec 008 (Requirement 5 of
   this spec)
 
-**Tests:** `src/vdbe/sorter.rs::tests::sort_key_descriptor_drives_multi_column_order`
+**Tests:** `db-core:src/vm/row/cursor.rs::sorter_cursor_multi_key_breaks_ties_on_second_column`
 
 #### Scenario: ORDER BY terms resolve ordinals and result-column aliases, not just bare columns (#144)
 
@@ -676,9 +676,9 @@ sorter-sourced rows.
   independent rules for the same value, none derivable from another, so
   a refactor unifying these comparison paths must preserve all three
 
-**Tests:** `src/vdbe/sorter.rs::tests::ascending_default_places_nulls_first`,
-`src/vdbe/sorter.rs::tests::descending_default_places_nulls_last`,
-`src/vdbe/cursor.rs::tests::distinct_treats_two_nulls_as_equal_unlike_the_eq_operator`
+**Tests:** `db-core:src/vm/row/cursor.rs::sorter_cursor_descending_and_nulls_first`,
+`db-core:src/vm/row/cursor.rs::tests::descending_default_places_nulls_last`,
+`db-core:src/vm/row/cursor.rs::tests::distinct_treats_two_nulls_as_equal_unlike_the_eq_operator`
 
 ### Requirement 10: EXPLAIN Output Format [MUST]
 
@@ -692,7 +692,7 @@ This format MUST be stable enough to feed parity #72's planned VM-diff
 dimension: two programs for the same query, from our engine and the
 pinned oracle, compared instruction-by-instruction.
 
-**Implementation:** `src/vdbe/explain.rs` (#91)
+**Implementation:** `db-core:src/vm/row/explain.rs` (#91)
 
 #### Scenario: EXPLAIN renders one row per instruction with all seven columns
 
@@ -818,7 +818,7 @@ to produce NULL, not only 0/1.
 `AggStep` and `AggFinal` MUST NOT contain any aggregate-specific logic
 themselves — same no-VDBE-layer-logic discipline as `Function`
 (Requirement 7) — dispatching instead into a shared aggregate registry
-(`src/vdbe/aggregate.rs`) by a P4 descriptor: `AggFinal` uses a plain
+(`db-core:src/vm/row/aggregate.rs`) by a P4 descriptor: `AggFinal` uses a plain
 `"name(arity)"` string (arity unused, since finalizing performs no
 comparison); `AggStep` uses `P4::AggFunc { name, arity, collation }`
 (#263, ADR-0019) so `min`/`max` compare under the aggregated argument's
@@ -841,8 +841,8 @@ superseded when ADR-0018's re-harvest added them.
 4) is reused as the GROUP BY grouping-table backing store — no new
 cursor machinery is introduced by this requirement.
 
-**Implementation:** `src/vdbe/exec.rs::agg_step`, `src/vdbe/exec.rs::agg_final`,
-`src/vdbe/aggregate.rs` (registry: `count`/`sum`/`avg`/`min`/`max`),
+**Implementation:** `db-core:src/vm/row/vm.rs::agg_step`, `db-core:src/vm/row/vm.rs::agg_final`,
+`db-core:src/vm/row/aggregate.rs` (registry: `count`/`sum`/`avg`/`min`/`max`),
 `src/codegen/select/aggregate/accum.rs::emit_agg_step` (GROUP BY/plain-aggregate codegen, #263)
 
 #### Scenario: AggStep accumulates across repeated calls into the same context slot
@@ -852,7 +852,7 @@ cursor machinery is introduced by this requirement.
 - THEN `AggFinal` on that slot with the same descriptor writes 60 to its
   result register
 
-**Tests:** `src/vdbe/exec.rs::tests::agg_step_accumulates_across_repeated_calls_into_the_same_context_slot`
+**Tests:** `db-core:src/vm/row/vm.rs::count_and_sum_over_an_ephemeral_table_scan`
 
 #### Scenario: AggFinal on a never-stepped slot yields the aggregate's zero-row result
 
@@ -860,7 +860,7 @@ cursor machinery is introduced by this requirement.
 - THEN `AggFinal` with `P4 = "count(0)"` writes 0, and `P4 = "sum(1)"`
   writes NULL — an empty group is a valid outcome, not an error
 
-**Tests:** `src/vdbe/exec.rs::tests::agg_final_on_a_never_stepped_slot_yields_the_zero_row_result`
+**Tests:** `db-core:src/vm/row/vm.rs::agg_final_with_no_agg_step_finalizes_to_the_zero_row_result`
 
 #### Scenario: Distinct aggregate-context slots do not alias
 
@@ -869,7 +869,7 @@ cursor machinery is introduced by this requirement.
 - THEN `AggFinal` on slot 0 yields 1 and on slot 1 yields 2 — slots are a
   disjoint address space, the same shape as cursor slots (Requirement 2)
 
-**Tests:** `src/vdbe/exec.rs::tests::distinct_agg_context_slots_do_not_alias`
+**Tests:** `db-core:src/vm/row/vm.rs::count_and_sum_over_an_ephemeral_table_scan`
 
 #### Scenario: AggStep's P5 discards prior state before folding
 
@@ -878,7 +878,7 @@ cursor machinery is introduced by this requirement.
 - THEN the slot's prior state is discarded first — `AggFinal` reads only
   the post-reset call's contribution, not the sum of both
 
-**Tests:** `src/vdbe/exec.rs::tests::agg_step_with_nonzero_p5_discards_prior_state_before_folding`
+**Tests:** `db-core:src/vm/row/vm.rs::group_by_hash_aggregation_sums_per_group_ordered_by_key`
 
 #### Scenario: AggStep's min/max compare under the P4 collation
 
@@ -887,7 +887,7 @@ cursor machinery is introduced by this requirement.
 - THEN `AggFinal` yields `'a'` — under BINARY, `'B'` (ASCII 66) would
   have stayed the minimum since it sorts below every lowercase letter
 
-**Tests:** `src/vdbe/exec.rs::tests::agg_step_min_honours_a_nocase_collation`,
+**Tests:** `db-core:src/vm/row/aggregate.rs::min_max_honour_the_given_collation`,
 `tests/unit/codegen_select_test.rs::min_max_aggregate_honours_collate_nocase`
 
 ### Requirement 13: Non-Recursive CTE Materialization [MUST]
@@ -1067,7 +1067,7 @@ CTE already shadows a same-named real table. `DROP VIEW` is parsed
 (#379) but not yet compiled — out of scope here.
 
 **Implementation:** `src/codegen/ddl/create_view.rs::compile_create_view`,
-`src/vdbe/cursor.rs::create_view`, `db-storage:src/row/schema/ddl_reader.rs::read_views`,
+`db-core:src/vm/row/cursor.rs::create_view`, `db-storage:src/row/schema/ddl_reader.rs::read_views`,
 `src/codegen/subquery/views.rs::{expand_views, resolve_views}`
 
 #### Scenario: CREATE VIEW registers a sqlite_master row with rootpage 0
@@ -1178,7 +1178,7 @@ change here — this requirement's `Tests:` links below only cover the
 two genuinely new fast paths.
 
 **Implementation:**
-`src/vdbe/cursor.rs::read_row_column` (index-cursor case),
+`db-core:src/vm/row/cursor.rs::read_row_column` (index-cursor case),
 `src/codegen/select/limit_scan.rs::{find_covering_index, try_compile_covering_index_scan}`,
 `src/codegen/select/aggregate.rs::try_compile_index_only_count`,
 `src/codegen/select/eqp.rs::explain_query_plan`
@@ -1222,7 +1222,7 @@ deliberately like the `Sorter*` family it stands beside: `HashAggOpen`
 descriptor), `HashAggFind` (locate-or-create this row's group),
 `HashAggStep` (fold into the located group's accumulator slot — the
 per-group counterpart of Requirement 12's `AggStep`, delegating to the
-same `src/vdbe/aggregate.rs` registry so an aggregate cannot mean one
+same `db-core:src/vm/row/aggregate.rs` registry so an aggregate cannot mean one
 thing under each strategy), `HashAggRewind`/`HashAggData`/`HashAggNext`
 (iterate the groups, mirroring `SorterSort`/`SorterData`/`SorterNext`).
 `HashAggData` additionally installs its group's accumulators into the
@@ -1255,7 +1255,7 @@ groups are emitted in key order despite SQLite guaranteeing none, and
 why group identity is a canonical key encoding rather than a `Hash`
 instance on `Value`.
 
-**Implementation:** `src/vdbe/hash_agg.rs`,
+**Implementation:** `db-core:src/vm/row/cursor.rs`,
 `src/codegen/select/aggregate/hash.rs::try_compile_hash_grouped_scan`
 
 #### Scenario: A plain GROUP BY compiles the sorter strategy, not the hash strategy
@@ -1286,7 +1286,7 @@ instance on `Value`.
   concatenation of key bytes would have merged them
 
 **Tests:** `tests/corpus/hash_group_by_test.rs::multi_column_group_by_matches_oracle`,
-`src/vdbe/hash_agg.rs::tests::multi_column_text_keys_are_unambiguous`
+`db-core:src/vm/row/cursor.rs::tests::multi_column_text_keys_are_unambiguous`
 
 #### Scenario: NULL group keys form one group of their own
 
@@ -1295,7 +1295,7 @@ instance on `Value`.
   any non-NULL value, matching the oracle
 
 **Tests:** `tests/corpus/hash_group_by_test.rs::null_group_keys_match_oracle`,
-`src/vdbe/hash_agg.rs::tests::null_and_missing_columns_share_the_null_key`
+`db-core:src/vm/row/cursor.rs::tests::null_and_missing_columns_share_the_null_key`
 
 #### Scenario: A NOCASE-collated text key groups case-insensitively
 
@@ -1305,7 +1305,7 @@ instance on `Value`.
   before hashing, not compared after
 
 **Tests:** `tests/corpus/hash_group_by_test.rs::nocase_collated_text_group_keys_match_oracle`,
-`src/vdbe/hash_agg.rs::tests::nocase_folds_text_keys_but_binary_does_not`
+`db-core:src/vm/row/cursor.rs::tests::nocase_folds_text_keys_but_binary_does_not`
 
 #### Scenario: INTEGER and REAL keys that compare equal share a group
 
@@ -1315,8 +1315,8 @@ instance on `Value`.
   an INTEGER
 
 **Tests:** `tests/corpus/hash_group_by_test.rs::integer_and_real_group_keys_that_compare_equal_share_a_group`,
-`src/vdbe/hash_agg.rs::tests::integer_and_exactly_equal_real_share_one_key`,
-`src/vdbe/hash_agg.rs::tests::out_of_range_real_never_collides_with_an_integer`
+`db-core:src/vm/row/cursor.rs::tests::integer_and_exactly_equal_real_share_one_key`,
+`db-core:src/vm/row/cursor.rs::tests::out_of_range_real_never_collides_with_an_integer`
 
 #### Scenario: A key column's comparison affinity is applied before hashing
 
@@ -1326,7 +1326,7 @@ instance on `Value`.
   byte
 
 **Tests:** `tests/corpus/hash_group_by_test.rs::numeric_affinity_group_keys_match_oracle`,
-`src/vdbe/hash_agg.rs::tests::numeric_affinity_groups_numeric_text_with_its_number`
+`db-core:src/vm/row/cursor.rs::tests::numeric_affinity_groups_numeric_text_with_its_number`
 
 #### Scenario: An explicit GROUP BY matching no rows produces no groups
 
@@ -1335,7 +1335,7 @@ instance on `Value`.
   with no `GROUP BY` would produce
 
 **Tests:** `tests/corpus/hash_group_by_test.rs::empty_result_set_matches_oracle`,
-`src/vdbe/hash_agg.rs::tests::an_empty_table_jumps_past_the_loop`
+`db-core:src/vm/row/cursor.rs::tests::an_empty_table_jumps_past_the_loop`
 
 #### Scenario: HAVING and LIMIT run unchanged at flush time
 
@@ -1352,7 +1352,7 @@ instance on `Value`.
   the oracle's own sort-then-group strategy picks
 
 **Tests:** `tests/corpus/hash_group_by_test.rs::plain_column_takes_the_same_arbitrary_row_as_the_oracle`,
-`src/vdbe/hash_agg.rs::tests::the_first_row_of_a_group_is_the_one_retained`
+`db-core:src/vm/row/cursor.rs::tests::the_first_row_of_a_group_is_the_one_retained`
 
 #### Scenario: A DISTINCT aggregate falls back to the sort strategy
 
@@ -1384,10 +1384,10 @@ arithmetic/compare/result opcodes) and #90 (cursor, ephemeral-index, and
 sorter opcode families). Requirements 7 (`Function` opcode dispatch), 10
 (`EXPLAIN`), and 11 (expression emission) are now active too: #91 wired
 the real SQL-to-`Program` pipeline (`src/codegen/`), the `Function`
-opcode's dispatch (`src/vdbe/exec.rs`), and the `EXPLAIN` printer
-(`src/vdbe/explain.rs`). Requirement 12 (`AggStep`/`AggFinal`) is now
+opcode's dispatch (`db-core:src/vm/row/vm.rs`), and the `EXPLAIN` printer
+(`db-core:src/vm/row/explain.rs`). Requirement 12 (`AggStep`/`AggFinal`) is now
 active too: #241 added the two opcodes plus a minimal `count`/`sum`
-aggregate registry (`src/vdbe/aggregate.rs`), reusing Requirement 4's
+aggregate registry (`db-core:src/vm/row/aggregate.rs`), reusing Requirement 4's
 existing `OpenEphemeral` support as the grouping-table backing store;
 #242 added the remaining `avg`/`min`/`max` aggregates to that registry.
 #239/#242 initially shipped GROUP BY codegen via a separate hand-rolled
@@ -1397,9 +1397,9 @@ register-arithmetic scheme, fixing a collation gap and adding the `P5`
 reset mechanism along the way.
 
 `tests/unit/vdbe_opcode_completeness_test.rs` (#65) asserts `Opcode::ALL`
-(`src/vdbe/program.rs`) exactly matches `tools/opcodes-v2.json`'s
+(`db-core:src/vm/row/program.rs`) exactly matches `tools/opcodes-v2.json`'s
 harvested opcode set — the full 68-opcode inventory, independent of how
 many are dispatched yet. `tools/assurance.py`'s `Opcode completeness:`
 line tracks how many of those 68 are actually dispatched in
-`src/vdbe/exec.rs` (currently 68/68 — every harvested opcode is
+`db-core:src/vm/row/vm.rs` (currently 68/68 — every harvested opcode is
 dispatched).

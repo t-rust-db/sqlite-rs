@@ -12,8 +12,8 @@
 #     FFI went with it; the `termios` half went with the line editor to
 #     db-cli (#14). Nothing in `src/` allows `unsafe` any more:
 #     `src/lib.rs` is `#![deny(unsafe_code)]` with no override anywhere.
-#   - src/vdbe/exec.rs and src/vdbe/cursor.rs carry that same VFS boundary
-#     one level up, as `Rc<dyn PageSource>` (#90, permanent per ADR-0013,
+#   - src/vdbe/adapter.rs (the db-storage side of db-core's `vm::row`, #18)
+#     carries that same VFS boundary one level up, as `Rc<dyn PageSource>` (#90, permanent per ADR-0013,
 #     #114 considered and rejected). The erasure is the point:
 #     a `Vm` holds at most one `Option<VmDb>` page source and clones it
 #     cheaply into N open cursors, so they never contend over exclusive
@@ -31,7 +31,7 @@
 # precisely so the file stays limit-clean (and so the check survives into
 # release builds).
 MVL_LIMIT ?= cargo-mvl-limit
-MVL_LIMIT_EXCLUDE := src/vdbe/exec.rs src/vdbe/cursor.rs src/bin/*
+MVL_LIMIT_EXCLUDE := src/vdbe/adapter.rs src/bin/*
 
 COVERAGE_MIN := 80
 
@@ -94,11 +94,12 @@ test-tiers: ## Run the tier conformance suite standalone (tier0..tier3 — see .
 # obligations land: btree (#52), then vdbe/functions, parser/grammar,
 # parser/tokenizer, vdbe/exec, record/encode (#368), then vdbe/program +
 # vdbe/control (opcode dispatch, fix/mcdc-scope).
-# src/btree/** and src/record/encode.rs left for db-storage (t-rust-db/sqlite-rs#4/#6),
-# src/parser/{grammar,tokenizer}.rs for db-core (#17); their obligations are
-# now those crates' to track.
-MCDC_FILES := src/vdbe/functions.rs src/vdbe/exec.rs \
-	src/vdbe/program.rs src/vdbe/control.rs
+# Every MC/DC-instrumented module has moved: src/btree/** and
+# src/record/encode.rs to db-storage (t-rust-db/sqlite-rs#4/#6),
+# src/parser/{grammar,tokenizer}.rs and src/vdbe/* to db-core (#17/#18).
+# Their obligations are those crates' to track; the list here is empty
+# until a module with decisions worth MC/DC lands in this crate again.
+MCDC_FILES :=
 
 # Committed obligations snapshot (tests/mcdc/obligations.json), analogous
 # to the corpus fixtures (spec 004): checked into git so
@@ -116,6 +117,7 @@ mcdc-obligations: ## Regenerate the committed MC/DC obligations snapshot (tests/
 		exit 1; \
 	}
 	@mkdir -p tests/mcdc
+	@if [ -z "$(MCDC_FILES)" ]; then echo "mcdc-obligations: no MC/DC-instrumented modules left in this crate (moved to db-core/db-storage, #18)"; exit 0; fi
 	cargo-mvl-mcdc scan -o tests/mcdc/obligations.json $(MCDC_FILES)
 	@echo "wrote tests/mcdc/obligations.json — commit it alongside the source change that shifted line numbers"
 
@@ -300,8 +302,8 @@ LAB271_REMOTE ?= lab271
 LAB271_URL ?= https://github.com/Lab271/sqlite-rs.git
 # Paths already repointed at db-storage/db-core/db-cli (ADR-0039): Lab271's
 # changes there no longer apply here (apply them in db-storage instead).
-# Grows as #18-#19 land.
-LAB271_EXCLUDE := src/vfs.rs src/vfs src/sys.rs src/sys src/parser.rs src/parser src/bin/sqlite-rs/readline.rs src/bin/sqlite-rs/readline src/pager.rs src/pager src/header.rs src/record.rs src/record src/btree.rs src/btree src/schema.rs src/schema src/format.rs src/integrity.rs
+# Grows as #19 lands.
+LAB271_EXCLUDE := src/vfs.rs src/vfs src/sys.rs src/sys src/parser.rs src/parser src/vdbe.rs src/vdbe src/bin/sqlite-rs/readline.rs src/bin/sqlite-rs/readline src/pager.rs src/pager src/header.rs src/record.rs src/record src/btree.rs src/btree src/schema.rs src/schema src/format.rs src/integrity.rs
 
 sync-lab271: ## Fetch Lab271/sqlite-rs main and show the delta to fold in (ADR-0039; apply with `make sync-lab271 APPLY=1`)
 	@git remote get-url $(LAB271_REMOTE) >/dev/null 2>&1 || git remote add $(LAB271_REMOTE) $(LAB271_URL)

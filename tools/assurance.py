@@ -90,7 +90,7 @@ to this header too):
 
 11. CI gate: --min X exits 1 if completeness OR coverage is below X.
 
-12. Opcode completeness: VDBE opcodes dispatched in `src/vdbe/exec.rs`
+12. Opcode completeness: VDBE opcodes dispatched in db-core's `vm/row/vm.rs` (sibling checkout)
     vs. the harvested scope in `tools/opcodes-v2.json` (#58/#65). Shown
     in the Model section once phase 3 (#89/#90/#91) gives it a nonzero
     denominator to count against.
@@ -136,7 +136,9 @@ CARGO_TOML = REPO_ROOT / "Cargo.toml"
 PLAN_PATH = REPO_ROOT / ".openspec" / "plan.md"
 OPCODES_JSON = REPO_ROOT / "tools" / "opcodes-v2.json"
 SQLLOGICTEST_JSON = REPO_ROOT / "tools" / "sqllogictest-status.json"
-VDBE_EXEC = REPO_ROOT / "src" / "vdbe" / "exec.rs"
+# The VDBE dispatcher moved to db-core (t-rust-db/sqlite-rs#18); read it from
+# the sibling checkout when present (feature 11), else the model is skipped.
+VDBE_EXEC = REPO_ROOT.parent / "db-core" / "src" / "vm" / "row" / "vm.rs"
 
 # Versioning policy (CHANGELOG): one minor per completed plan phase.
 # minor -> (value block, phase, epic). Extend as blocks are planned.
@@ -230,14 +232,14 @@ def parity_model():
 
 
 def opcode_model():
-    """VDBE opcodes dispatched (`src/vdbe/exec.rs`) vs. harvested scope
+    """VDBE opcodes dispatched (db-core `src/vm/row/vm.rs::step`) vs. harvested scope
     (`tools/opcodes-v2.json`, #58/#65). Returns (implemented, total) or
     None if either input is missing.
 
     Heuristic, same style as parity_model()/tier_model(): an opcode
     counts as implemented if `dispatch`'s match has a real arm for it,
     not the `other => Unimplemented` catch-all. `Opcode::ALL`
-    (src/vdbe/program.rs) is checked against this same JSON by
+    (db-core `vm::row::Opcode::ALL`) is checked against this same JSON by
     tests/unit/vdbe_opcode_completeness_test.rs, so the total here always
     equals the full frozen set.
     """
@@ -246,16 +248,16 @@ def opcode_model():
     import json
 
     harvested = set(json.loads(OPCODES_JSON.read_text())["opcodes"])
-    m = re.search(r"fn dispatch\b.*?\{(.*)\n\}\n", VDBE_EXEC.read_text(), re.DOTALL)
+    m = re.search(r"\nfn step\b.*?\n\}\n", VDBE_EXEC.read_text(), re.DOTALL)
     if not m:
         return None
     implemented = set()
-    for line in m.group(1).splitlines():
-        arm = re.match(r"\s*([\w\s|]+?)\s*=>", line)
+    for line in m.group(0).splitlines():
+        arm = re.match(r"\s*((?:Opcode::\w+\s*\|?\s*)+)=>", line)
         if not arm:
             continue
         for name in arm.group(1).split("|"):
-            name = name.strip()
+            name = name.strip().removeprefix("Opcode::")
             if name and name not in ("other", "_"):
                 implemented.add(name)
     return len(implemented & harvested), len(harvested)

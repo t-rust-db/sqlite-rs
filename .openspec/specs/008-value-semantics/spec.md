@@ -44,7 +44,7 @@ where a lossless conversion exists (NUMERIC/INTEGER/REAL affinities
 coerce a well-formed numeric-text literal; BLOB and TEXT affinities never
 convert).
 
-**Implementation:** `src/vdbe/affinity.rs`
+**Implementation:** `db-core:src/vm/row/affinity.rs`
 
 **Corpus:** `tests/corpus/expr_vectors/affinity.jsonl`
 
@@ -101,7 +101,7 @@ merges INTEGER and REAL — a value's magnitude is compared numerically
 across both, not by storage-class tiebreak. A comparison against NULL
 MUST itself yield NULL (see Requirement 4).
 
-**Implementation:** `src/vdbe/compare.rs`
+**Implementation:** `db-core:src/vm/row/compare.rs`
 
 **Corpus:** `tests/corpus/expr_vectors/comparison.jsonl`
 
@@ -139,7 +139,7 @@ Unicode; `ß`/`SS` and `é`/`É` do NOT compare equal), or RTRIM (BINARY
 comparison after stripping trailing spaces from both operands, not from
 storage).
 
-**Implementation:** `db-storage:src/row/record/collation.rs`; a column/index-column's
+**Implementation:** `db-core:src/value.rs`; a column/index-column's
 declared `COLLATE` (parsed but previously unstored, #500) is carried on
 `TableSchema::column_collations` / `IndexedColumn::collation`
 (`db-storage:src/row/schema/ddl_reader.rs`) and consulted by every comparison site that
@@ -199,7 +199,7 @@ propagating it. Boolean operators MUST follow three-valued logic: `NULL
 AND 0` is 0 (false dominates), `NULL AND 1` is NULL; `NULL OR 1` is 1
 (true dominates), `NULL OR 0` is NULL. `NOT NULL` is NULL.
 
-**Implementation:** `src/vdbe/value.rs`
+**Implementation:** `db-core:src/value.rs`
 
 **Corpus:** `tests/corpus/expr_vectors/null.jsonl`
 
@@ -235,7 +235,7 @@ arithmetic that overflows `i64` MUST promote the result to REAL rather
 than silently wrapping (the CVE-2025-29087/3277 class). `CAST(... AS
 INTEGER)` on a REAL truncates toward zero.
 
-**Implementation:** `src/vdbe/coerce.rs`
+**Implementation:** `db-core:src/vm/row/coerce.rs`
 
 **Corpus:** `tests/corpus/expr_vectors/coercion.jsonl`
 
@@ -283,7 +283,7 @@ arguments. `substr()`'s index arithmetic (negative/zero `Y`, negative
 `Z`) MUST match SQLite's `substrFunc` exactly, not a simplified
 one-sided-negative-index approximation.
 
-**Implementation:** `src/vdbe/functions.rs`
+**Implementation:** `db-core:src/vm/row/functions.rs`
 
 **Corpus:** `tests/corpus/expr_vectors/functions.jsonl`
 
@@ -343,4 +343,4 @@ REAL is tracked as a follow-up, not solved by this requirement.
   opcode (Requirement 7 there, which names `"like(2)"` as a P4
   descriptor) needs no LIKE-specific VDBE logic
 
-**Tests:** `src/vdbe/functions.rs::tests::like_and_glob_match_oracle_semantics`
+**Tests:** `db-core:src/vm/row/functions.rs::tests::like_and_glob_match_oracle_semantics`

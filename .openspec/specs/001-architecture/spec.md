@@ -127,14 +127,14 @@ Executes bytecode programs.
 
 | Component | Responsibility | SQLite equivalent |
 |-----------|----------------|-------------------|
-| `Opcode` | Instruction enum (`src/vdbe/program.rs`) | `opcodes.h` (192 opcodes) |
+| `Opcode` | Instruction enum (`db-core:src/vm/row/program.rs`) | `opcodes.h` (192 opcodes) |
 | `Program` / `Instruction` | Bytecode array | `Vdbe` |
-| `Vm` | Fetch-decode-execute loop (`src/vdbe/exec.rs`) | `vdbe.c` |
+| `Vm` | Fetch-decode-execute loop (`db-core:src/vm/row/vm.rs`) | `vdbe.c` |
 | Registers (`Vec<Value>`) | Register/value storage | `vdbemem.c` |
 | `cursor` module | B-tree cursor handle | `VdbeCursor` |
 | `sorter` module | External sort | `vdbesort.c` |
 
-**Implementation:** `src/vdbe/`
+**Implementation:** `db-core:src/vm/row/`
 
 **Estimated lines:** ~25,000
 
@@ -327,7 +327,7 @@ sqlite-rs MUST read and write files byte-compatible with SQLite 3.x.
 
 Each layer MUST communicate only through its defined interface. No layer SHALL reach into another layer's internals.
 
-**Implementation:** `db-storage:src/row/vfs/`, `db-storage:src/row/pager/`, `db-storage:src/row/btree/`, `src/vdbe/`, `src/codegen/`, `db-core:src/parser/row/`
+**Implementation:** `db-storage:src/row/vfs/`, `db-storage:src/row/pager/`, `db-storage:src/row/btree/`, `db-core:src/vm/row/`, `src/codegen/`, `db-core:src/parser/row/`
 
 #### Scenario: B-tree does not know SQL
 

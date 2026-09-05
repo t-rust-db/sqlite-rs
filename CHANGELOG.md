@@ -52,6 +52,17 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
   back-ported to Lab271 (Lab271/sqlite-rs#701/#702, db-core ADR 0009).
   Grammar drift tooling (`sqlite.ebnf`, `make check-grammar-drift`) stays
   here for now (#17).
+- The VDBE is db-core's `vm::row` (v0.49.0, feature `vm-row`): `src/vdbe`
+  (14,724 lines) is now a facade re-exporting it plus `vdbe/adapter.rs`,
+  the db-storage side of db-core's hooks — `TableCursor`/`IndexCursor`
+  behind its `Cursor` trait, the cursor factory `OpenRead`/`OpenWrite`
+  resolve root pages through, the pager-backed `Transaction` hook and
+  the `sqlite_master`/`sqlite_stat1`/`sqlite_sequence` schema-write
+  hook (db-core ADR 0008: the adapter lives in the consumer). The
+  `execute_*` entry points keep their signatures. Getting there fixed
+  db-core's port to sqlite-rs's operand and cursor conventions (db-core
+  #134, v0.43 → v0.49). One test class dropped: `CursorTypeMismatch`
+  arms of the old dispatcher no longer exist (#18).
 - `sqlite_rs::record::Value` (with `TextEncoding`, `Collation`,
   `compare_text`, `format::format_real`) is now `db_core::value::*`,
   re-exported through db-storage v0.5.0 (db-core ADR 0010): the same

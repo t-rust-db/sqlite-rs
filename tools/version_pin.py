@@ -54,8 +54,11 @@ PINNED_LITERALS = [
         re.compile(r'pub const ORACLE_VERSION: &str = "([^"]+)"'),
         "tier-1 bench ORACLE_VERSION const",
     ),
+    # `<repo>:path` = a sibling t-rust-db checkout (`../<repo>`), where the
+    # site moved with the VDBE (t-rust-db/sqlite-rs#18); checked when that
+    # checkout is present, reported as skipped otherwise.
     (
-        "src/vdbe/functions.rs",
+        "db-core:src/vm/row/functions.rs",
         re.compile(r'fn sqlite_version.*?Value::Text\("([^"]+)"', re.DOTALL),
         "sqlite_version() return literal",
     ),
@@ -102,7 +105,14 @@ def main():
     print("=" * 60)
 
     for rel, pattern, description in PINNED_LITERALS:
-        path = REPO_ROOT / rel
+        if ":" in rel:
+            repo, sub_path = rel.split(":", 1)
+            path = REPO_ROOT.parent / repo / sub_path
+            if not (REPO_ROOT.parent / repo).is_dir():
+                print(f"  SKIP     {rel} — no sibling {repo} checkout to verify against")
+                continue
+        else:
+            path = REPO_ROOT / rel
         if not path.exists():
             problems.append(f"{rel}: missing (expected to carry the {description})")
             print(f"  MISSING  {rel}")
