@@ -3,7 +3,7 @@
 //! #172 cross-compat proof, the "vice versa" half: a rollback journal
 //! *we* write must be recoverable by a real `sqlite3`, not just the
 //! other way around (`tests/tiers/tier0.rs::t0_hot_journal_recovers_committed_state`
-//! and `src/pager.rs`'s fixture test prove sqlite3-written journals
+//! and `db-storage/src/row/pager/mod.rs`'s fixture test prove sqlite3-written journals
 //! recover through our `Pager::open`).
 //!
 //! Simulates a crash between "journal synced" and "main file synced":

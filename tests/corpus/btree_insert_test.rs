@@ -80,7 +80,7 @@ fn oracle_select(oracle: &PathBuf, db: &PathBuf, sql: &str) -> String {
 
 /// Encodes a `(a, b)` row's record body as `t(a INTEGER, b TEXT)` with `a`
 /// as the rowid-alias column (stored as NULL, per the rowid-alias
-/// convention `src/btree.rs` documents on the read side).
+/// convention `db-storage/src/row/btree/mod.rs` documents on the read side).
 fn row_payload(b: &str) -> Vec<u8> {
     encode_record(
         &[Value::Null, Value::Text(b.to_string().into())],

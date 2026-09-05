@@ -114,7 +114,7 @@ Link syntax accepted on **Tests:** / **Implementation:** lines:
     `tests/record_test.rs`                          file only
     `tests/record_test.rs::test_varint_lengths`     file + symbol
     `src/x.rs::Struct::method`                      trailing symbol is checked
-    inline #[cfg(test)] in src/record/varint.rs     prose containing a path
+    inline #[cfg(test)] in db-storage/src/row/record/varint.rs     prose containing a path
     comma-separated lists of the above
 """
 

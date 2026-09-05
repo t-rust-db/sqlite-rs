@@ -504,7 +504,7 @@ fn bench_transactions(c: &mut Criterion) {
 /// --bench`) have an overflow-forcing column, and adding one is a bigger
 /// change than this test-only ticket's scope — this instead drives
 /// `TableCursor` directly against the small, already-committed
-/// `overflow_multi_page.db` corpus fixture (`src/btree.rs`'s own
+/// `overflow_multi_page.db` corpus fixture (`db-storage/src/row/btree/mod.rs`'s own
 /// `overflow_multi_page_payload_is_byte_identical_to_oracle` test uses the
 /// same file), timing exactly the `first_row` -> `reassemble_payload`
 /// walk across its 14-page overflow chain.
@@ -528,7 +528,7 @@ fn bench_overflow_payload(c: &mut Criterion) {
         b.iter(|| {
             let source = VfsPageSource::open(&vfs, path, header.page_size)
                 .unwrap_or_else(|e| fail(format!("open page source {path:?}: {e}")));
-            // Root page 2, matching `src/btree.rs`'s `open_cursor` test
+            // Root page 2, matching `db-storage/src/row/btree/mod.rs`'s `open_cursor` test
             // helper — these corpus fixtures are single-table synthetic
             // b-trees, not full databases with a `sqlite_master` catalog.
             let mut cursor = TableCursor::new(source, &header, 2);

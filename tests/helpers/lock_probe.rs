@@ -1,8 +1,8 @@
 // Copyright 2026 Schuberg Philis
 // SPDX-License-Identifier: Apache-2.0
 //! Test-only helper binary: a genuine second OS process that takes a
-//! `fcntl` byte-range lock, used by `src/vfs/lock.rs` and `src/vfs/shm.rs`'s
-//! tests (via `src/vfs/test_lock_probe.rs`) to observe lock contention that
+//! `fcntl` byte-range lock, used by `db-storage/src/row/vfs/lock.rs` and `db-storage/src/row/vfs/shm.rs`'s
+//! tests (via `db-storage/src/row/vfs/test_lock_probe.rs`) to observe lock contention that
 //! a same-process re-lock could never see (POSIX record locks are scoped
 //! to `(process, inode)`). Replaces the old `fork`-based test helpers
 //! (#66) with a real subprocess — no `unsafe` needed.

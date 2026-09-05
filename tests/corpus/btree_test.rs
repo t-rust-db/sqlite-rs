@@ -3,7 +3,7 @@
 //! Requirement 1/2 scenarios (spec 006-btree): full-table scans of the
 //! `btrees/` fixture family via the real corpus path (`oracle::corpus_dir`).
 //! Byte-level correctness (row content, overflow-chain SHA-256 parity) is
-//! already proven by `src/btree/mod.rs`'s own inline unit tests against
+//! already proven by `db-storage/src/row/btree/mod.rs`'s own inline unit tests against
 //! these same fixtures; this file instead proves the cursor integrates
 //! correctly through the corpus harness's own fixture-path resolution.
 

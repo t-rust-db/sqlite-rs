@@ -12,7 +12,7 @@ use crate::harness::{discover_fixtures, read_fixture, FixtureOutcome};
 /// into the main file and deleting the journal — which would mutate the
 /// checked-in fixture on every test run. Its own dedicated coverage
 /// (`tests/tiers/tier0.rs::t0_hot_journal_recovers_committed_state`,
-/// `src/pager.rs`'s `hot_journal_fixture_recovers_committed_state`) works
+/// `db-storage/src/row/pager/mod.rs`'s `hot_journal_fixture_recovers_committed_state`) works
 /// against a scratch-temp-dir copy instead.
 fn is_hot_journal_fixture(path: &std::path::Path) -> bool {
     path.file_name().and_then(|n| n.to_str()) == Some("hot_journal.db")

@@ -59,8 +59,8 @@ fn collect_rs_files(root: &Path, out: &mut Vec<PathBuf>) {
 }
 
 /// Collects every `.rs` file under each root, plus each root's sibling
-/// submodule directory of the same name (e.g. `src/schema.rs` +
-/// `src/schema/`), and returns the list.
+/// submodule directory of the same name (e.g. `db-storage/src/row/schema/mod.rs` +
+/// `db-storage/src/row/schema/`), and returns the list.
 fn collect_module_trees(roots: &[&str]) -> Vec<PathBuf> {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let mut files = Vec::new();

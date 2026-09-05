@@ -50,7 +50,7 @@
 //!   when `WalWriter::open_existing` reports the file missing rather
 //!   than propagating the error (#422, fixed —
 //!   `flush_in_wal_mode_recovers_when_wal_and_shm_vanish` in
-//!   `src/pager.rs`). [`OracleSession`] below (a genuinely live,
+//!   `db-storage/src/row/pager/mod.rs`). [`OracleSession`] below (a genuinely live,
 //!   still-open second process) still sidesteps the same-process
 //!   overlay assertion issue by construction: it's the more faithful
 //!   reproduction of this ticket's "two terminals, both stay running"
