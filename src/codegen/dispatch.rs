@@ -127,6 +127,10 @@ pub fn compile_statement(
     schemas: &[TableSchema],
     views: &[ViewSchema],
 ) -> Result<Program, DispatchError> {
+    // #19 measurement switch: off unless SQLITE_RS_CODEGEN=db-core.
+    if let Some(program) = super::shadow::try_compile(sql, schemas) {
+        return Ok(program);
+    }
     let find_schema = |name: &str| -> Result<&TableSchema, DispatchError> {
         schemas
             .iter()

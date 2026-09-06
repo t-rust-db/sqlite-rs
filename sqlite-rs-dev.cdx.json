@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-26T10:09:49.000000000Z",
+    "timestamp": "2026-09-05T18:11:50.000000000Z",
     "tools": [
       {
         "vendor": "sqlite-rs",
@@ -13,20 +13,20 @@
     ],
     "component": {
       "type": "application",
-      "bom-ref": "pkg:cargo/sqlite-rs@0.18.2",
+      "bom-ref": "pkg:cargo/sqlite-rs@0.18.10",
       "name": "sqlite-rs",
-      "version": "0.18.2",
+      "version": "0.18.10",
       "licenses": [
         {
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/sqlite-rs@0.18.2"
+      "purl": "pkg:cargo/sqlite-rs@0.18.10"
     },
     "properties": [
       {
         "name": "sqlite-rs:generated-at-commit",
-        "value": "feccb35933af4e0c7b34c040ace578ce7433ea0e"
+        "value": "a19256024a6c7308d0e2df78e184b4bec4184911"
       }
     ]
   },
@@ -205,7 +205,7 @@
       "bom-ref": "pkg:cargo/cfg-if@1.0.4",
       "name": "cfg-if",
       "version": "1.0.4",
-      "scope": "optional",
+      "scope": "required",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"
@@ -384,6 +384,41 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/db-cli@0.4.1",
+      "name": "db-cli",
+      "version": "0.4.1",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/db-cli@0.4.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/db-core@0.61.0",
+      "name": "db-core",
+      "version": "0.61.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/db-core@0.61.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/db-storage@0.5.6",
+      "name": "db-storage",
+      "version": "0.5.6",
+      "scope": "required",
+      "licenses": [],
+      "purl": "pkg:cargo/db-storage@0.5.6"
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/digest@0.10.7",
       "name": "digest",
       "version": "0.10.7",
@@ -394,6 +429,32 @@
         }
       ],
       "purl": "pkg:cargo/digest@0.10.7"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/dirs@5.0.1",
+      "name": "dirs",
+      "version": "5.0.1",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/dirs@5.0.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/dirs-sys@0.4.1",
+      "name": "dirs-sys",
+      "version": "0.4.1",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/dirs-sys@0.4.1"
     },
     {
       "type": "library",
@@ -540,6 +601,19 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/getrandom@0.2.17",
+      "name": "getrandom",
+      "version": "0.2.17",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/getrandom@0.2.17"
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/getrandom@0.3.4",
       "name": "getrandom",
       "version": "0.3.4",
@@ -647,13 +721,26 @@
       "bom-ref": "pkg:cargo/libc@0.2.189",
       "name": "libc",
       "version": "0.2.189",
-      "scope": "optional",
+      "scope": "required",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"
         }
       ],
       "purl": "pkg:cargo/libc@0.2.189"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/libredox@0.1.23",
+      "name": "libredox",
+      "version": "0.1.23",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/libredox@0.1.23"
     },
     {
       "type": "library",
@@ -709,6 +796,19 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/memmap2@0.9.11",
+      "name": "memmap2",
+      "version": "0.9.11",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/memmap2@0.9.11"
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/num-traits@0.2.19",
       "name": "num-traits",
       "version": "0.2.19",
@@ -745,6 +845,19 @@
         }
       ],
       "purl": "pkg:cargo/oorandom@11.1.5"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/option-ext@0.2.0",
+      "name": "option-ext",
+      "version": "0.2.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MPL-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/option-ext@0.2.0"
     },
     {
       "type": "library",
@@ -842,7 +955,7 @@
       "bom-ref": "pkg:cargo/proc-macro2@1.0.107",
       "name": "proc-macro2",
       "version": "1.0.107",
-      "scope": "optional",
+      "scope": "required",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"
@@ -881,7 +994,7 @@
       "bom-ref": "pkg:cargo/quote@1.0.47",
       "name": "quote",
       "version": "1.0.47",
-      "scope": "optional",
+      "scope": "required",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"
@@ -995,6 +1108,19 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/redox_users@0.4.6",
+      "name": "redox_users",
+      "version": "0.4.6",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/redox_users@0.4.6"
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/regex@1.13.1",
       "name": "regex",
       "version": "1.13.1",
@@ -1083,6 +1209,19 @@
         }
       ],
       "purl": "pkg:cargo/rusty-fork@0.3.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/ruzstd@0.7.3",
+      "name": "ruzstd",
+      "version": "0.7.3",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/ruzstd@0.7.3"
     },
     {
       "type": "library",
@@ -1190,10 +1329,23 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/static_assertions@1.1.0",
+      "name": "static_assertions",
+      "version": "1.1.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/static_assertions@1.1.0"
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/syn@2.0.119",
       "name": "syn",
       "version": "2.0.119",
-      "scope": "optional",
+      "scope": "required",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"
@@ -1229,6 +1381,32 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/thiserror@1.0.69",
+      "name": "thiserror",
+      "version": "1.0.69",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/thiserror@1.0.69"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/thiserror-impl@1.0.69",
+      "name": "thiserror-impl",
+      "version": "1.0.69",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/thiserror-impl@1.0.69"
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/tinytemplate@1.2.1",
       "name": "tinytemplate",
       "version": "1.2.1",
@@ -1239,6 +1417,19 @@
         }
       ],
       "purl": "pkg:cargo/tinytemplate@1.2.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/twox-hash@1.6.3",
+      "name": "twox-hash",
+      "version": "1.6.3",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/twox-hash@1.6.3"
     },
     {
       "type": "library",
@@ -1271,7 +1462,7 @@
       "bom-ref": "pkg:cargo/unicode-ident@1.0.24",
       "name": "unicode-ident",
       "version": "1.0.24",
-      "scope": "optional",
+      "scope": "required",
       "licenses": [
         {
           "expression": "(MIT OR Apache-2.0) AND Unicode-3.0"
@@ -1330,6 +1521,19 @@
         }
       ],
       "purl": "pkg:cargo/walkdir@2.5.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/wasi@0.11.1+wasi-snapshot-preview1",
+      "name": "wasi",
+      "version": "0.11.1+wasi-snapshot-preview1",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
+        }
+      ],
+      "purl": "pkg:cargo/wasi@0.11.1+wasi-snapshot-preview1"
     },
     {
       "type": "library",
@@ -1476,6 +1680,19 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/windows-sys@0.48.0",
+      "name": "windows-sys",
+      "version": "0.48.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/windows-sys@0.48.0"
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/windows-sys@0.61.2",
       "name": "windows-sys",
       "version": "0.61.2",
@@ -1486,6 +1703,110 @@
         }
       ],
       "purl": "pkg:cargo/windows-sys@0.61.2"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows-targets@0.48.5",
+      "name": "windows-targets",
+      "version": "0.48.5",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/windows-targets@0.48.5"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_aarch64_gnullvm@0.48.5",
+      "name": "windows_aarch64_gnullvm",
+      "version": "0.48.5",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/windows_aarch64_gnullvm@0.48.5"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_aarch64_msvc@0.48.5",
+      "name": "windows_aarch64_msvc",
+      "version": "0.48.5",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/windows_aarch64_msvc@0.48.5"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_i686_gnu@0.48.5",
+      "name": "windows_i686_gnu",
+      "version": "0.48.5",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/windows_i686_gnu@0.48.5"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_i686_msvc@0.48.5",
+      "name": "windows_i686_msvc",
+      "version": "0.48.5",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/windows_i686_msvc@0.48.5"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_gnu@0.48.5",
+      "name": "windows_x86_64_gnu",
+      "version": "0.48.5",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/windows_x86_64_gnu@0.48.5"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_gnullvm@0.48.5",
+      "name": "windows_x86_64_gnullvm",
+      "version": "0.48.5",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/windows_x86_64_gnullvm@0.48.5"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/windows_x86_64_msvc@0.48.5",
+      "name": "windows_x86_64_msvc",
+      "version": "0.48.5",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/windows_x86_64_msvc@0.48.5"
     },
     {
       "type": "library",

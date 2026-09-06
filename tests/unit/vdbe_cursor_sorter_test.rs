@@ -11,7 +11,7 @@
 //! opcodes): hand-assembled `Program`s exercising full-scan, ORDER BY,
 //! and DISTINCT against the corpus's real b-tree fixtures, matching
 //! `TableCursor`'s own oracle-parity full scan
-//! (`src/btree.rs::table_multipage_full_scan_matches_oracle`) row-for-row
+//! (`db-storage/src/row/btree/mod.rs::table_multipage_full_scan_matches_oracle`) row-for-row
 //! through the VDBE cursor/sorter/ephemeral opcodes rather than a direct
 //! `TableCursor` call. Hand-assembly (not codegen, #91) is this ticket's
 //! own acceptance bar — see spec 009's `Traceability Note`.

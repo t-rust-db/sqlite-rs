@@ -4,7 +4,7 @@
 //! correctly through the corpus harness's own fixture-path resolution.
 //! Byte-level DDL-parsing correctness (column extraction, WITHOUT
 //! ROWID/STRICT markers, graceful degradation) is already proven by
-//! `src/schema/ddl_reader.rs`'s own inline unit tests against these same
+//! `db-storage/src/row/schema/ddl_reader.rs`'s own inline unit tests against these same
 //! fixtures.
 
 use sqlite_rs::btree::TableCursor;

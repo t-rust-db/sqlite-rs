@@ -49,12 +49,20 @@ pub(crate) enum SelectOutcome {
 /// parse-resolve-compile pipeline, just against a different
 /// `PageSource`.
 pub(crate) fn compile_select_program(
+    sql: &str,
     select: &Select,
     eqp_mode: bool,
     schemas: &[TableSchema],
     views: &[ViewSchema],
     stats_by_table: &std::collections::HashMap<String, sqlite_rs::planner::Stats>,
 ) -> Result<SelectOutcome, String> {
+    // #19 measurement switch (off unless SQLITE_RS_CODEGEN=db-core); EXPLAIN
+    // QUERY PLAN stays local — db-core has no EQP dispatch yet.
+    if !eqp_mode {
+        if let Some(program) = sqlite_rs::codegen::shadow::try_compile(sql, schemas) {
+            return Ok(SelectOutcome::Program(program));
+        }
+    }
     // #376: a `WITH` clause is rewritten away before any table
     // resolution happens — every CTE reference in `FROM`/`JOIN` becomes
     // a `TableRefKind::Subquery` wrapping that CTE's own query, so the
@@ -269,7 +277,7 @@ pub fn run_query(raw_args: Vec<String>) -> ExitCode {
     };
     let stats_by_table = sqlite_rs::planner::load_stats(Rc::clone(&source), &header, &schemas);
 
-    match compile_select_program(&select, eqp_mode, &schemas, &views, &stats_by_table) {
+    match compile_select_program(&sql, &select, eqp_mode, &schemas, &views, &stats_by_table) {
         Ok(SelectOutcome::Eqp(rows)) => {
             for row in rows {
                 println!("{}|{}|{}|{}", row.id, row.parent, row.notused, row.detail);

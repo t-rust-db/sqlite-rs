@@ -9,7 +9,7 @@
 //!
 //! `TableCursor` only needs a `PageSource` impl, not a full pager/VFS/file
 //! — so pages are built directly as in-memory byte buffers and served via
-//! a `FakePageSource`, mirroring the private test helper in `src/btree.rs`.
+//! a `FakePageSource`, mirroring the private test helper in `db-storage/src/row/btree/mod.rs`.
 
 #![allow(
     clippy::unwrap_used,

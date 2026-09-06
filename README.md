@@ -23,7 +23,7 @@ The honest caveat: safety is not correctness. Memory-safe code can still return 
 
 ### Zero external dependencies
 
-sqlite-rs targets security-sensitive contexts where every dependency is a trust boundary and proc macros are the worst case — they execute arbitrary code at build time, not just at run time. The production build has **zero external dependencies**: proc-macro-based error enums and the CLI's line editor were replaced with hand-rolled equivalents ([ADR-0030](.openspec/adr/0030-zero-proc-macro-dependencies.md)), and the last remaining crate (`nix`, for POSIX file locking and raw-mode termios) was replaced by ~180 lines of vendored, verified `unsafe extern "C"` bindings confined to `src/sys/` — the crate's sole `unsafe` carve-out, everywhere else is `#![deny(unsafe_code)]` ([ADR-0031](.openspec/adr/0031-vendor-nix-subset.md)).
+sqlite-rs targets security-sensitive contexts where every dependency is a trust boundary and proc macros are the worst case — they execute arbitrary code at build time, not just at run time. This crate declares **no third-party dependencies of its own**: proc-macro-based error enums and the CLI's line editor were replaced with hand-rolled equivalents ([ADR-0030](.openspec/adr/0030-zero-proc-macro-dependencies.md)), and `nix` was replaced by ~180 lines of vendored, verified `unsafe extern "C"` bindings ([ADR-0031](.openspec/adr/0031-vendor-nix-subset.md)). Since the t-rust-db org move ([ADR-0040](.openspec/adr/0040-first-party-git-dependencies.md)) the storage stack and the CLI layer come from the sibling crates `db-storage` and `db-cli` (pinned git tags), which carry the vendored FFI now — this crate is `#![deny(unsafe_code)]` with no carve-out at all — and whose few transitive crates (`memmap2`/`ruzstd`, `libc`/`dirs`) are tracked down to zero one level up. Every crate in the closure is still license-checked, advisory-checked and `cargo vet`-ed here.
 
 This is a machine-checked claim, not a prose one: [`sqlite-rs.cdx.json`](sqlite-rs.cdx.json) is a [CycloneDX](https://cyclonedx.org/) SBOM generated from `Cargo.lock` (`make sbom`), and it has zero components. Build-time code execution is a real attack surface independent of what ships, though, so [`sqlite-rs-dev.cdx.json`](sqlite-rs-dev.cdx.json) (`make sbom-dev`) covers the full `Cargo.lock` closure — every test/build/bench-only crate, `scope`-tagged `optional` — for exactly that visibility; `make check-deny`/`make check-audit`/`cargo vet` already gate that same closure in CI.
 
@@ -75,7 +75,7 @@ See [.openspec/plan.md](.openspec/plan.md) for the full breakdown and [.openspec
 
 ## Status
 
-**Version 0.18.9** — see [CHANGELOG.md](CHANGELOG.md). One minor version per completed plan phase.
+**Version 0.19.0** — see [CHANGELOG.md](CHANGELOG.md). One minor version per completed plan phase.
 
 | Phase | Version | Status |
 |-------|---------|--------|
@@ -86,6 +86,7 @@ See [.openspec/plan.md](.openspec/plan.md) for the full breakdown and [.openspec
 | V5 — Transactions | 0.14.0–0.15.0 | ✅ Complete |
 | V6 — WAL & CTEs | 0.16.0–0.17.0 | ✅ Complete |
 | V7 — Polish & compatibility | 0.18.x | ✅ Complete |
+| Migration to t-rust-db (epic #1, phases 1–3) | 0.19.0 | ✅ Complete |
 
 ### Performance
 
@@ -102,6 +103,23 @@ See [.openspec/plan.md](.openspec/plan.md) for the full breakdown and [.openspec
 | correlated_subquery | 1.91× | within 2× |
 
 See [docs/performance.md](docs/src/performance.md) for the full progression.
+
+## Syncing from Lab271
+
+This repository is a snapshot of [Lab271/sqlite-rs](https://github.com/Lab271/sqlite-rs),
+which stays **leading for engine behaviour** until it is archived
+([ADR-0039](.openspec/adr/0039-lab271-leading-until-archived.md)): fix
+parser/codegen/VDBE bugs there; do the `db-storage`/`db-core`/`db-cli`
+repointing (#1) here. `Cargo.toml`'s `[package.metadata.lab271] synced`
+names the last Lab271 commit folded in.
+
+```sh
+make sync-lab271          # fetch Lab271 main, show what changed since `synced`
+make sync-lab271 APPLY=1  # stage the delta + bump `synced`, then commit as
+                          #   chore: sync Lab271/sqlite-rs @<sha>
+```
+
+Paths already repointed are excluded via `LAB271_EXCLUDE` in the Makefile.
 
 ## Getting Started
 

@@ -4,6 +4,92 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 **Versioning policy:** one minor version per completed plan phase — the version number tells the plan's story, sub-steps stay inside a phase. V1 (READ CORE) = 0.1.0 through 0.4.0. *(History note: internal iterations briefly numbered 0.4.0–0.6.0 were renumbered into the phase scheme on 14 Aug 2026, before any tag or publication of those versions existed.)*
 
+## [Unreleased]
+
+## [0.19.0] - 2026-09-06
+
+### Added
+
+- `codegen::shadow` (#19): with `SQLITE_RS_CODEGEN=db-core` set, the CLI,
+  REPL and sqllogictest runner hand every statement to db-core's
+  `codegen::row` first and fall back to this crate's codegen on rejection,
+  logging each attempt (`OK`/`FALLBACK`, reason, SQL) to
+  `SQLITE_RS_CODEGEN_LOG` (default `target/codegen-shadow.log`). Off by
+  default; it exists to measure db-core#175's gap against the oracle
+  suites instead of estimating it.
+
+### Changed
+
+- db-core pinned to v0.61.0 (was v0.50.0) with the `codegen-row` feature
+  enabled, and db-storage to v0.5.6 (its matching re-pin), ahead of #19's
+  codegen measurement switch. `crate::parser::ast` is now a facade over
+  `db_core::parser::ast` (db-core moved the AST out of `parser::row`,
+  db-core#147). `src/vdbe.rs` is generic over the page source
+  (`Rc<P: PageSource + ?Sized>`); the `Rc<dyn PageSource>` type erasure
+  lives only in `src/vdbe/adapter.rs`, the one exempted boundary, so
+  `check-mvl-limit` passes without a new exemption.
+
+- Org move (t-rust-db/sqlite-rs#1): Lab271/sqlite-rs stays leading for
+  engine behaviour until archived, tracked by snapshot via
+  `make sync-lab271` and `[package.metadata.lab271] synced` (ADR-0039,
+  #12). First-party t-rust-db crates may be pinned git dependencies;
+  `db-storage` (`row` feature, v0.4.0) declared, `deny.toml` allows
+  its source and the MIT license its transitive crates need, SBOMs
+  regenerated (ADR-0040 amending 0030/0031, #13).
+- The storage stack — `vfs` (+ vendored `fcntl`), `pager`, `header`,
+  `record`, `btree`, `schema`, `format`, `integrity` (~17,000 lines) — is
+  now `db_storage::row::*`, re-exported under the same `sqlite_rs::`
+  module paths from `src/lib.rs`, private copies deleted (#2–#7). One
+  coupled stack, one change: the orphan rule (`impl PageSource for
+  RefCell<Pager>`, ADR-0017) and shared header/record types make a
+  module-at-a-time switch uncompilable. Pager fixture tests moved to
+  `tests/unit/pager_fixtures.rs`; the layer-isolation guard now checks
+  that `db_storage::` is named only in the `src/lib.rs` facade; spec
+  links into moved code use the `db-storage:` cross-repo form
+  (`tools/assurance.py` feature 11); MC/DC and MVL file lists shrink to
+  what is still here (#16).
+- The line editor is db-cli's (`db_cli::Readline`, v0.3.0): emacs
+  keybindings and Ctrl-P/N history are new; tab completion
+  (`completion.rs`) and tokenizer-backed highlighting (`highlight.rs`)
+  are the same code plugged into db-cli's `Completer`/`Highlighter`
+  hooks; history stays at `$XDG_STATE_HOME/sqlite-rs/history` /
+  `~/.sqlite-rs_history`. When stdin is not a tty the REPL no longer
+  echoes prompts, matching `sqlite3`. `src/bin/sqlite-rs/readline/` and
+  `src/sys/termios.rs` deleted — the crate has no `unsafe` left; db-cli
+  is an optional dependency behind the default `cli` feature (#14).
+- The REPL loop is db-cli's (`db_cli::Repl`, v0.4.1): sqlite-rs is now a
+  `ReplHandler` — tokenizer-backed statement completion and splitting,
+  execution on the shared `Pager`, `list`/`csv`/`column`/`line` rendering
+  via `mode.rs`, plus `.tables .schema .indices .databases .dump
+  .version`. `.help .quit .exit .mode .headers .color` are db-cli
+  built-ins; `.mode` now also accepts `table`/`json` (its usage message
+  changed accordingly). Errors still go to stderr as `Error: …`. `.mode`
+  and `.headers` are silent on success, like `sqlite3` (#15).
+- The parser (tokenizer, grammar, AST, printer; 7,361 lines) is
+  db-core's `parser::row` (v0.30.0, feature `parser-row`), re-exported as
+  `sqlite_rs::parser` with `tokenizer::Span` re-homed. db-core's copy is
+  a strict superset: inline `OVER (…)` window functions now parse (the
+  planner still rejects them) and `KEY` is a bare identifier — both being
+  back-ported to Lab271 (Lab271/sqlite-rs#701/#702, db-core ADR 0009).
+  Grammar drift tooling (`sqlite.ebnf`, `make check-grammar-drift`) stays
+  here for now (#17).
+- The VDBE is db-core's `vm::row` (v0.49.0, feature `vm-row`): `src/vdbe`
+  (14,724 lines) is now a facade re-exporting it plus `vdbe/adapter.rs`,
+  the db-storage side of db-core's hooks — `TableCursor`/`IndexCursor`
+  behind its `Cursor` trait, the cursor factory `OpenRead`/`OpenWrite`
+  resolve root pages through, the pager-backed `Transaction` hook and
+  the `sqlite_master`/`sqlite_stat1`/`sqlite_sequence` schema-write
+  hook (db-core ADR 0008: the adapter lives in the consumer). The
+  `execute_*` entry points keep their signatures. Getting there fixed
+  db-core's port to sqlite-rs's operand and cursor conventions (db-core
+  #134, v0.43 → v0.49). One test class dropped: `CursorTypeMismatch`
+  arms of the old dispatcher no longer exist (#18).
+- `sqlite_rs::record::Value` (with `TextEncoding`, `Collation`,
+  `compare_text`, `format::format_real`) is now `db_core::value::*`,
+  re-exported through db-storage v0.5.0 (db-core ADR 0010): the same
+  type `db_core::vm::row` executes over, so the VDBE cursor adapter (#18)
+  needs no per-cell conversion. Pins: db-storage v0.5.0, db-core v0.35.0.
+
 ## [0.18.10] - 2026-08-31
 
 ### Fixed

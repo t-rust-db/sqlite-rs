@@ -3,7 +3,7 @@
 //! Property-based tests for varint and record-decoding roundtrips.
 //!
 //! Lives outside `src/` rather than alongside the hand-picked example
-//! tests in `src/record/varint.rs` / `src/record/decode.rs`: those files
+//! tests in `db-storage/src/row/record/varint.rs` / `db-storage/src/row/record/decode.rs`: those files
 //! are in the qualified subset (issue #23, enforced by `make check-mvl-limit`),
 //! whose curated macro allowlist doesn't include proptest's `proptest!`
 //! macro expansion.
@@ -58,7 +58,7 @@ fn encode_varint(value: u64) -> Vec<u8> {
 }
 
 /// Builds a record payload from `(serial_type, body_bytes)` pairs — same
-/// shape as `src/record/decode.rs`'s test-only helper of the same name.
+/// shape as `db-storage/src/row/record/decode.rs`'s test-only helper of the same name.
 fn record_bytes(serial_types_and_bodies: &[(u64, &[u8])]) -> Vec<u8> {
     let mut header = Vec::new();
     for (st, _) in serial_types_and_bodies {

@@ -667,15 +667,24 @@ fn test_unsupported_compound_select() {
     assert!(msg.contains("compound"), "message: {msg}");
 }
 
-/// Window functions (`OVER`/`FILTER`) are deferred to V9 (drop-order 4,
-/// see `tests/tiers/tier3.rs::t3_modern_sql_upsert_returning_windows`) —
-/// deliberately `Unsupported`, not `Invalid`, matching the same
+/// Window functions: the inline `OVER (PARTITION BY … ORDER BY …)` form
+/// parses since the parser became db-core's `parser::row` (#17; the
+/// grammar is being back-ported to Lab271 as Lab271/sqlite-rs#701) — the
+/// planner still rejects it (V9, drop-order 4, see
+/// `tests/tiers/tier3.rs::t3_modern_sql_upsert_returning_windows`). Frame
+/// clauses and `FILTER` stay `Unsupported`, not `Invalid`, matching the
 /// not-yet-implemented-but-syntactically-known pattern as compound
 /// SELECT's `INTERSECT`/`EXCEPT` above.
 #[test]
-fn test_unsupported_window_function() {
-    let msg = unsupported("SELECT row_number() OVER (ORDER BY x) FROM t");
-    assert!(msg.contains("window"), "message: {msg}");
+fn test_window_function_parses_but_frames_are_unsupported() {
+    let select = accept("SELECT row_number() OVER (ORDER BY x) FROM t");
+    assert_eq!(select.columns.len(), 1);
+    let msg = unsupported(
+        "SELECT sum(x) OVER (ORDER BY x ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) FROM t",
+    );
+    assert!(msg.contains("window frame"), "message: {msg}");
+    let msg = unsupported("SELECT sum(x) FILTER (WHERE x > 0) OVER (ORDER BY x) FROM t");
+    assert!(msg.contains("FILTER"), "message: {msg}");
 }
 
 #[test]

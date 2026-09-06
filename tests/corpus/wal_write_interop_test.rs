@@ -4,7 +4,7 @@
 //! behavior of our own [`WalWriter`]-produced frames, and the "vice versa"
 //! oracle-parity direction (`journal_interop_test.rs`'s pattern applied to
 //! WAL) — a `-wal` file *we* write must be recoverable by a real
-//! `sqlite3`, not just the other way around (`src/pager.rs`'s
+//! `sqlite3`, not just the other way around (`db-storage/src/row/pager/mod.rs`'s
 //! `wal_pending*` fixture tests already prove sqlite3-written WALs read
 //! correctly through our `Pager::open`).
 //!
@@ -34,7 +34,7 @@ use sqlite_rs::vfs::{companion_path, AnyVfs, PageSource, UnixVfs, VfsError, Writ
 use crate::oracle::{pinned_oracle, skip_no_oracle};
 
 /// A lock held by a genuine second OS process — same technique as
-/// `src/vfs/test_lock_probe.rs` (not reusable here: it's `pub(crate)`
+/// `db-storage/src/row/vfs/test_lock_probe.rs` (not reusable here: it's `pub(crate)`
 /// inside the lib crate, invisible to this separate integration-test
 /// binary), needed because POSIX record locks never conflict with a
 /// second request from the *same* process.
@@ -161,7 +161,7 @@ fn checkpoint_mid_write_is_consistent_then_completes_once_unblocked() {
     writer.sync().unwrap();
 
     // A reader is pinned to frame 1 (slot 1's read-lock byte; see
-    // `src/pager/checkpoint.rs`'s own test for the same byte-offset math).
+    // `db-storage/src/row/pager/checkpoint.rs`'s own test for the same byte-offset math).
     const WAL_READ_LOCK_SLOT_1_BYTE: i64 = 124;
     let held = HeldLock::spawn(&shm_path, "rdlock", WAL_READ_LOCK_SLOT_1_BYTE, 1);
     {
@@ -201,7 +201,7 @@ fn checkpoint_mid_write_is_consistent_then_completes_once_unblocked() {
 /// the *same* process, so proving this requires a real second OS process
 /// (`HeldLock`, same technique `checkpoint_mid_write_is_consistent_then_completes_once_unblocked`
 /// uses for the reader-mark byte) holding `WAL_WRITE_LOCK` — offset
-/// `UNIX_SHM_BASE` (120), 1 byte, matching `src/vfs/shm.rs`'s private
+/// `UNIX_SHM_BASE` (120), 1 byte, matching `db-storage/src/row/vfs/shm.rs`'s private
 /// `WAL_WRITE_LOCK_BYTE` — while this crate's own [`Pager::flush`]
 /// attempts to commit a WAL-mode transaction. The attempt must be
 /// refused ([`VfsError::Locked`]), not silently interleave frames or
@@ -248,7 +248,7 @@ fn concurrent_writer_is_refused_the_wal_write_lock() {
 
 /// A `-wal` frame written by our own [`WalWriter`] must be readable by a
 /// real `sqlite3` — the vice-versa half of the read-path's oracle parity
-/// (`src/pager.rs`'s `wal_pending*` fixture tests cover sqlite3-written
+/// (`db-storage/src/row/pager/mod.rs`'s `wal_pending*` fixture tests cover sqlite3-written
 /// WALs read by us). Builds a real WAL-mode database via the oracle,
 /// snapshots a data page before an `UPDATE`, checkpoints the `UPDATE`
 /// away with TRUNCATE (emptying the `-wal` but leaving `journal_mode=WAL`

@@ -245,6 +245,7 @@ pub fn compile_update_with_catalog(
                 p3: 0,
                 p4: P4::None,
                 p5: 1,
+                comment: None,
             });
             let pass1_done = em.new_label();
             let matched = try_compile_range_row_seek(

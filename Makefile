@@ -2,22 +2,18 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: bench-compile-path help test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures fixtures-bench bench bench-cli bench-status bench-point-lookup extract-sql-corpus test-corpus test-parity test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
+.PHONY: clean bench-compile-path help test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures fixtures-bench bench bench-cli bench-status bench-point-lookup extract-sql-corpus test-corpus test-parity test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
 
 # Qualified-subset gate (issue #23). Boundary policy:
-#   - Tier 0 core (src/record/, src/btree/, src/header.rs, schema reader):
-#     stays limit-clean, no exceptions.
-#   - src/vfs/ is the designated `dyn` boundary (its `Vfs`/`VfsFile`/
-#     `SharedLockGuard` trait objects): exclude exactly that module here so
-#     the claim stays explicit — everything above the VFS is in the
-#     qualified subset. It no longer needs `unsafe` itself (#66): `fcntl`/
-#     `-shm` access goes through the safe wrappers in `src/sys/` (#563,
-#     vendored FFI — the crate's sole `#![allow(unsafe_code)]` carve-out;
-#     see .openspec/adr/0031-vendor-nix-subset.md). `src/lib.rs` is
-#     `#![deny(unsafe_code)]` everywhere else, with no override possible
-#     outside `src/sys/`.
-#   - src/vdbe/exec.rs and src/vdbe/cursor.rs carry that same VFS boundary
-#     one level up, as `Rc<dyn PageSource>` (#90, permanent per ADR-0013,
+#   - Tier 0 core (vfs, pager, header, record, btree, schema) now lives in
+#     db-storage's `row` module (t-rust-db/sqlite-rs#2-#7) and is that
+#     crate's to gate; `src/lib.rs` only re-exports it. The VFS `dyn`
+#     boundary (`Vfs`/`VfsFile`/`SharedLockGuard`) and the vendored `fcntl`
+#     FFI went with it; the `termios` half went with the line editor to
+#     db-cli (#14). Nothing in `src/` allows `unsafe` any more:
+#     `src/lib.rs` is `#![deny(unsafe_code)]` with no override anywhere.
+#   - src/vdbe/adapter.rs (the db-storage side of db-core's `vm::row`, #18)
+#     carries that same VFS boundary one level up, as `Rc<dyn PageSource>` (#90, permanent per ADR-0013,
 #     #114 considered and rejected). The erasure is the point:
 #     a `Vm` holds at most one `Option<VmDb>` page source and clones it
 #     cheaply into N open cursors, so they never contend over exclusive
@@ -35,7 +31,7 @@
 # precisely so the file stays limit-clean (and so the check survives into
 # release builds).
 MVL_LIMIT ?= cargo-mvl-limit
-MVL_LIMIT_EXCLUDE := src/vfs.rs src/vfs/memory.rs src/vfs/unix.rs src/vfs/page_source.rs src/vdbe/exec.rs src/vdbe/cursor.rs src/bin/* src/sys.rs src/sys/*
+MVL_LIMIT_EXCLUDE := src/vdbe/adapter.rs src/bin/*
 
 COVERAGE_MIN := 80
 
@@ -98,10 +94,12 @@ test-tiers: ## Run the tier conformance suite standalone (tier0..tier3 — see .
 # obligations land: btree (#52), then vdbe/functions, parser/grammar,
 # parser/tokenizer, vdbe/exec, record/encode (#368), then vdbe/program +
 # vdbe/control (opcode dispatch, fix/mcdc-scope).
-MCDC_FILES := src/btree.rs src/btree/*.rs src/btree/table/*.rs src/btree/index/*.rs \
-	src/vdbe/functions.rs src/parser/grammar.rs src/parser/tokenizer.rs \
-	src/vdbe/exec.rs src/record/encode.rs \
-	src/vdbe/program.rs src/vdbe/control.rs
+# Every MC/DC-instrumented module has moved: src/btree/** and
+# src/record/encode.rs to db-storage (t-rust-db/sqlite-rs#4/#6),
+# src/parser/{grammar,tokenizer}.rs and src/vdbe/* to db-core (#17/#18).
+# Their obligations are those crates' to track; the list here is empty
+# until a module with decisions worth MC/DC lands in this crate again.
+MCDC_FILES :=
 
 # Committed obligations snapshot (tests/mcdc/obligations.json), analogous
 # to the corpus fixtures (spec 004): checked into git so
@@ -119,6 +117,7 @@ mcdc-obligations: ## Regenerate the committed MC/DC obligations snapshot (tests/
 		exit 1; \
 	}
 	@mkdir -p tests/mcdc
+	@if [ -z "$(MCDC_FILES)" ]; then echo "mcdc-obligations: no MC/DC-instrumented modules left in this crate (moved to db-core/db-storage, #18)"; exit 0; fi
 	cargo-mvl-mcdc scan -o tests/mcdc/obligations.json $(MCDC_FILES)
 	@echo "wrote tests/mcdc/obligations.json — commit it alongside the source change that shifted line numbers"
 
@@ -262,7 +261,7 @@ supply-chain: check-deny check-audit check-license-headers ## All supply-chain g
 check-grammar-drift: ## Grammar gate: .openspec/grammar/sqlite.ebnf annotations must resolve against pinned parse.y
 	@python3 tools/grammar_drift.py --strict
 
-check-mvl-limit: ## Qualified-subset gate: no unsafe/dyn/lifetimes in src/ (mvl-rust rust-limit; the 4 files with genuine dyn Vfs/VfsFile/SharedLockGuard trait objects, the 2 VDBE files with the Rc<dyn PageSource> boundary (#90, #114), src/bin (stdout/stderr CLI I/O boundary), and src/sys/ (vendored fcntl/termios FFI, #563 — the crate's sole unsafe carve-out, see .openspec/adr/0031-vendor-nix-subset.md), exempt — #66 removed the unsafe rationale from src/vfs/lock.rs, shm.rs, test_lock_probe.rs, so those are back in the qualified subset)
+check-mvl-limit: ## Qualified-subset gate: no unsafe/dyn/lifetimes in src/ (mvl-rust rust-limit; the 2 VDBE files with the Rc<dyn PageSource> boundary (#90, #114), and src/bin (stdout/stderr CLI I/O boundary) exempt — #66 removed the unsafe rationale from src/vfs/lock.rs, shm.rs, test_lock_probe.rs, so those are back in the qualified subset)
 	@command -v $(MVL_LIMIT) >/dev/null 2>&1 || { \
 	  echo "error: $(MVL_LIMIT) not found."; \
 	  echo "install: cargo install cargo-mvl  (or build from mvl-lang/mvl-rust:"; \
@@ -285,11 +284,41 @@ silent-swallow: ## Robustness audit: count error-discarding patterns in src/ (#3
 	@echo ".unwrap_or(...)     (fallible call papered over with a default)"
 	@grep -rn "\.unwrap_or" src/ $(if $(VERBOSE),,| wc -l | sed 's/^/  /') || true
 
+clean: ## Remove everything generated or compiled: target/ (incl. bench fixtures, coverage, gate caches), spike/fuzz targets, vendor/, docs/book, mutants.out*, __pycache__, stray *.db-shm, Cargo.lock.before-update
+	cargo clean
+	@for d in tests/spike/*/ tests/fuzz; do [ -f "$$d/Cargo.toml" ] && (cd "$$d" && cargo clean 2>/dev/null) || true; done
+	rm -rf vendor docs/book Cargo.lock.before-update
+	find . -type d \( -name 'mutants.out*' -o -name '__pycache__' \) -prune -exec rm -rf {} +
+	find . -type f \( -name '*.db-shm' -o -name '*.pyc' -o -name '*.rs.bk' \) -not -path './target/*' -delete
+	@echo "clean: build outputs, generated fixtures and caches removed (committed fixtures, SBOMs and lockfiles kept)"
+
 version: ## Print the crate's current version (Cargo.toml [package].version)
 	@sed -n 's/^version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1
 
 version-pin: ## Version gate: every sqlite3 pin site agrees with Cargo.toml's [package.metadata.oracle]
 	python3 tools/version_pin.py --strict
+
+LAB271_REMOTE ?= lab271
+LAB271_URL ?= https://github.com/Lab271/sqlite-rs.git
+# Paths already repointed at db-storage/db-core/db-cli (ADR-0039): Lab271's
+# changes there no longer apply here (apply them in db-storage instead).
+# Grows as #19 lands.
+LAB271_EXCLUDE := src/vfs.rs src/vfs src/sys.rs src/sys src/parser.rs src/parser src/vdbe.rs src/vdbe src/bin/sqlite-rs/readline.rs src/bin/sqlite-rs/readline src/pager.rs src/pager src/header.rs src/record.rs src/record src/btree.rs src/btree src/schema.rs src/schema src/format.rs src/integrity.rs
+
+sync-lab271: ## Fetch Lab271/sqlite-rs main and show the delta to fold in (ADR-0039; apply with `make sync-lab271 APPLY=1`)
+	@git remote get-url $(LAB271_REMOTE) >/dev/null 2>&1 || git remote add $(LAB271_REMOTE) $(LAB271_URL)
+	@git fetch -q $(LAB271_REMOTE) main
+	@sha=$$(git rev-parse $(LAB271_REMOTE)/main); \
+	 synced=$$(sed -n 's/^synced *= *"\([^"]*\)".*/\1/p' Cargo.toml); \
+	 echo "synced: $$synced"; echo "lab271: $$sha"; \
+	 if [ "$$sha" = "$$synced" ]; then echo "up to date"; exit 0; fi; \
+	 echo "--- delta (excluding repointed paths) ---"; \
+	 git diff --stat $$synced $(LAB271_REMOTE)/main -- . $(foreach e,$(LAB271_EXCLUDE),':!$(e)'); \
+	 if [ -n "$(APPLY)" ]; then \
+	   git diff $$synced $(LAB271_REMOTE)/main -- . $(foreach e,$(LAB271_EXCLUDE),':!$(e)') | git apply --index; \
+	   sed -i '' "s/^synced *= *\".*\"/synced = \"$$sha\"/" Cargo.toml; git add Cargo.toml; \
+	   echo "staged; commit with: git commit -m 'chore: sync Lab271/sqlite-rs @$${sha%%$${sha#???????}}'"; \
+	 fi
 
 check-mod-files: ## Module-layout gate: no legacy foo/mod.rs files under src/ (#73; use foo.rs instead)
 	@hits=$$(find src -name 'mod.rs'); \

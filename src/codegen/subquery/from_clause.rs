@@ -273,6 +273,7 @@ pub(crate) fn materialize_from_subquery(
         p3: 0,
         p4: P4::None,
         p5: 1,
+        comment: None,
     });
 
     let end_label = em.new_label();

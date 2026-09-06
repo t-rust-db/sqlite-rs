@@ -13,6 +13,7 @@ pub mod expr;
 pub(crate) mod index_maintenance;
 pub mod pragma;
 pub mod select;
+pub mod shadow;
 pub mod stmt;
 pub(crate) mod subquery;
 pub mod transaction;

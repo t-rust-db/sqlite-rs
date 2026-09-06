@@ -73,6 +73,15 @@ to this header too):
 10. Line coverage: reads cached cargo-llvm-cov (target/llvm-cov.json) or
     tarpaulin output if present; never runs coverage itself.
 
+11. Cross-repo links: a link prefixed `<repo>:` (e.g.
+    `db-storage:src/row/btree/mod.rs::TableCursor`) points into a sibling
+    t-rust-db repository — the storage stack moved there
+    (t-rust-db/sqlite-rs#2–#7) while its specs are still hosted here until
+    t-rust-db/db-storage#10. Resolution: if `../<repo>` is checked out next
+    to this one, the link is validated there exactly like a local one (file
+    exists, `::symbol` occurs); if not (CI), it is accepted unverified and
+    the count of such links is printed so the gap is visible, not silent.
+
 10b. Mutation score: reads cached cargo-mutants output
     (target/mutants.out/outcomes.json, written by `make mutants`);
     never runs mutation testing itself. Caught/(caught+missed), same
@@ -81,7 +90,7 @@ to this header too):
 
 11. CI gate: --min X exits 1 if completeness OR coverage is below X.
 
-12. Opcode completeness: VDBE opcodes dispatched in `src/vdbe/exec.rs`
+12. Opcode completeness: VDBE opcodes dispatched in db-core's `vm/row/vm.rs` (sibling checkout)
     vs. the harvested scope in `tools/opcodes-v2.json` (#58/#65). Shown
     in the Model section once phase 3 (#89/#90/#91) gives it a nonzero
     denominator to count against.
@@ -105,7 +114,7 @@ Link syntax accepted on **Tests:** / **Implementation:** lines:
     `tests/record_test.rs`                          file only
     `tests/record_test.rs::test_varint_lengths`     file + symbol
     `src/x.rs::Struct::method`                      trailing symbol is checked
-    inline #[cfg(test)] in src/record/varint.rs     prose containing a path
+    inline #[cfg(test)] in db-storage/src/row/record/varint.rs     prose containing a path
     comma-separated lists of the above
 """
 
@@ -127,7 +136,9 @@ CARGO_TOML = REPO_ROOT / "Cargo.toml"
 PLAN_PATH = REPO_ROOT / ".openspec" / "plan.md"
 OPCODES_JSON = REPO_ROOT / "tools" / "opcodes-v2.json"
 SQLLOGICTEST_JSON = REPO_ROOT / "tools" / "sqllogictest-status.json"
-VDBE_EXEC = REPO_ROOT / "src" / "vdbe" / "exec.rs"
+# The VDBE dispatcher moved to db-core (t-rust-db/sqlite-rs#18); read it from
+# the sibling checkout when present (feature 11), else the model is skipped.
+VDBE_EXEC = REPO_ROOT.parent / "db-core" / "src" / "vm" / "row" / "vm.rs"
 
 # Versioning policy (CHANGELOG): one minor per completed plan phase.
 # minor -> (value block, phase, epic). Extend as blocks are planned.
@@ -143,6 +154,9 @@ VERSION_MAP = {
     15: ("V6", 1, "#354"),  16: ("V6", 2, "#354"),
     17: ("V6", 3, "#354"),
     18: ("V7", 2, "#421"),
+    # t-rust-db migration epic (#1): phases 1–3 (db-cli, db-storage, db-core
+    # vm) shipped as 0.19.0; phase 4 (#19 codegen repoint, #20, #21) next.
+    19: ("t-rust-db migration", 3, "#1"),
 }
 
 
@@ -221,14 +235,14 @@ def parity_model():
 
 
 def opcode_model():
-    """VDBE opcodes dispatched (`src/vdbe/exec.rs`) vs. harvested scope
+    """VDBE opcodes dispatched (db-core `src/vm/row/vm.rs::step`) vs. harvested scope
     (`tools/opcodes-v2.json`, #58/#65). Returns (implemented, total) or
     None if either input is missing.
 
     Heuristic, same style as parity_model()/tier_model(): an opcode
     counts as implemented if `dispatch`'s match has a real arm for it,
     not the `other => Unimplemented` catch-all. `Opcode::ALL`
-    (src/vdbe/program.rs) is checked against this same JSON by
+    (db-core `vm::row::Opcode::ALL`) is checked against this same JSON by
     tests/unit/vdbe_opcode_completeness_test.rs, so the total here always
     equals the full frozen set.
     """
@@ -237,16 +251,16 @@ def opcode_model():
     import json
 
     harvested = set(json.loads(OPCODES_JSON.read_text())["opcodes"])
-    m = re.search(r"fn dispatch\b.*?\{(.*)\n\}\n", VDBE_EXEC.read_text(), re.DOTALL)
+    m = re.search(r"\nfn step\b.*?\n\}\n", VDBE_EXEC.read_text(), re.DOTALL)
     if not m:
         return None
     implemented = set()
-    for line in m.group(1).splitlines():
-        arm = re.match(r"\s*([\w\s|]+?)\s*=>", line)
+    for line in m.group(0).splitlines():
+        arm = re.match(r"\s*((?:Opcode::\w+\s*\|?\s*)+)=>", line)
         if not arm:
             continue
         for name in arm.group(1).split("|"):
-            name = name.strip()
+            name = name.strip().removeprefix("Opcode::")
             if name and name not in ("other", "_"):
                 implemented.add(name)
     return len(implemented & harvested), len(harvested)
@@ -415,6 +429,30 @@ def report_model():
     return detail
 
 
+CROSS_REPO_RE = re.compile(r"^([a-z][a-z0-9-]*):(.+)$")
+# Feature 11: cross-repo links accepted without verification because the
+# sibling checkout is absent. Reported in the dashboard.
+CROSS_REPO_UNVERIFIED = []
+
+
+def _resolve_path(file_part):
+    """Resolve a link's path token to (root, path, verified).
+
+    Local paths resolve inside REPO_ROOT. `<repo>:path` (feature 11)
+    resolves inside `../<repo>` when that checkout exists; otherwise
+    returns (None, None, False) meaning "accept, unverified".
+    """
+    m = CROSS_REPO_RE.match(file_part)
+    if not m:
+        return REPO_ROOT, (REPO_ROOT / file_part).resolve(), True
+    repo, rel = m.group(1), m.group(2)
+    sibling = (REPO_ROOT.parent / repo).resolve()
+    if not sibling.is_dir():
+        CROSS_REPO_UNVERIFIED.append(file_part)
+        return None, None, False
+    return sibling, (sibling / rel).resolve(), True
+
+
 def _validate_link(entry):
     """Validate one link entry. Returns (entry, error) — error is None if valid.
 
@@ -427,11 +465,13 @@ def _validate_link(entry):
         return None
     parts = entry.split("::")
     file_part = parts[0].strip()
-    m = re.search(r"[\w/.-]+\.(?:rs|py|sh|toml)", file_part)
+    m = re.search(r"(?:[a-z][a-z0-9-]*:)?[\w/.-]+\.(?:rs|py|sh|toml)", file_part)
     if m:
         file_part = m.group(0)
-    resolved = (REPO_ROOT / file_part).resolve()
-    if not (resolved.is_relative_to(REPO_ROOT) and resolved.exists() and resolved.is_file()):
+    root, resolved, verified = _resolve_path(file_part)
+    if not verified:
+        return (entry, None)
+    if not (resolved.is_relative_to(root) and resolved.exists() and resolved.is_file()):
         return (entry, "file missing")
     if len(parts) > 1:
         symbol = re.sub(r"\(.*\)$", "", parts[-1].strip())
@@ -481,8 +521,10 @@ def parse_specs():
             impl_exists = False
             if impl_path and not planned:
                 impl_file = impl_path.split("::")[0].strip()
-                resolved = (REPO_ROOT / impl_file).resolve()
-                impl_exists = resolved.is_relative_to(REPO_ROOT) and resolved.exists()
+                root, resolved, verified = _resolve_path(impl_file)
+                impl_exists = (not verified) or (
+                    resolved.is_relative_to(root) and resolved.exists()
+                )
 
             dead_links = []
 
@@ -711,6 +753,10 @@ def report(requirements, verbose=False, traceability_only=False):
     print(f"Coverage (E->P):      {backed}/{total_scenarios} scenarios test-backed  ({coverage:.0%}, {direct} per-scenario)")
     if total_dead:
         print(f"DEAD LINKS:           {total_dead} — false claims of coverage, penalized below 0 in Coverage above; fix the spec (see --verbose)")
+    if CROSS_REPO_UNVERIFIED:
+        n = len(set(CROSS_REPO_UNVERIFIED))
+        repos = sorted({x.split(":")[0] for x in CROSS_REPO_UNVERIFIED})
+        print(f"Cross-repo links:     {n} accepted unverified — no sibling checkout for {', '.join(repos)} (feature 11)")
 
     if not traceability_only:
         corpus_total = sum(1 for r in active if r["corpus_files"])

@@ -253,10 +253,8 @@ fn mode_rejects_invalid_argument() {
     seed(&db, "CREATE TABLE t(a)");
     let out = run_repl_script(&db, ".mode sideways\n.quit\n");
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(
-        stderr.contains("usage: .mode csv|column|line|list"),
-        "{stderr}"
-    );
+    // db-cli owns `.mode` since #15; its usage line lists its full mode set.
+    assert!(stderr.contains("usage: .mode"), "{stderr}");
 }
 
 #[test]

@@ -30,29 +30,13 @@
 use std::collections::HashSet;
 use std::fs;
 
-/// Mirrors the Makefile's `MCDC_FILES` glob expansion — keep in sync
-/// (there is no programmatic way to share a Makefile variable with a
-/// Rust test; `src/btree/*.rs`, `src/btree/table/*.rs`, and
-/// `src/btree/index/*.rs` are spelled out explicitly here).
-const MCDC_FILES: &[&str] = &[
-    "src/btree.rs",
-    "src/btree/error.rs",
-    "src/btree/index.rs",
-    "src/btree/master.rs",
-    "src/btree/schema.rs",
-    "src/btree/table.rs",
-    "src/btree/table/delete.rs",
-    "src/btree/table/insert.rs",
-    "src/btree/index/delete.rs",
-    "src/btree/index/insert.rs",
-    "src/vdbe/functions.rs",
-    "src/parser/grammar.rs",
-    "src/parser/tokenizer.rs",
-    "src/vdbe/exec.rs",
-    "src/record/encode.rs",
-    "src/vdbe/program.rs",
-    "src/vdbe/control.rs",
-];
+/// Mirrors the Makefile's `MCDC_FILES` — keep in sync (there is no
+/// programmatic way to share a Makefile variable with a Rust test).
+/// Every instrumented module has moved: `src/btree/**`/`src/record` to
+/// db-storage (t-rust-db/sqlite-rs#4/#6), `src/parser` and `src/vdbe` to
+/// db-core (#17/#18); their obligations are those crates' to track. Empty
+/// until a module with decisions worth MC/DC lands here again.
+const MCDC_FILES: &[&str] = &[];
 
 fn manifest_path(rel: &str) -> String {
     format!("{}/{rel}", env!("CARGO_MANIFEST_DIR"))

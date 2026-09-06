@@ -20,13 +20,13 @@ never re-deriving semantics the kernel (spec 008) or the b-tree layer
 b-tree-mutation logic of its own — `MakeRecord` reuses spec 003's
 `encode_record` byte-for-byte (as it already did for the read/DISTINCT
 path), and `Insert`/`Delete`/`IdxInsert` are thin operand-marshalling
-wrappers over `src/btree::{insert_row, delete_row, insert_entry}`.
+wrappers over `crate::btree::{insert_row, delete_row, insert_entry}`.
 
 Unlike spec 009's opcodes, `OpenWrite`/`Insert`/`NewRowid` were never
 harvested from a V2-era oracle `EXPLAIN` (V2 predates any write-path
 support), so `tools/opcodes-v2.json`/`Opcode::ALL`'s harvested-parity
 check (`tests/unit/vdbe_opcode_completeness_test.rs`) deliberately does not
-cover them — see `src/vdbe/program.rs`'s `ALL` doc comment. This spec's
+cover them — see `db-core:src/vm/row/program.rs`'s `ALL` doc comment. This spec's
 requirements are the traceability surface for those three opcodes
 instead.
 
@@ -42,8 +42,8 @@ access paths. A `Vm` built via the pre-existing read-only
 `Vm::with_db`/`execute_with_db` MUST reject every write opcode with
 `ExecError::NoDatabase` rather than silently no-op or panic.
 
-**Implementation:** `src/vdbe/exec.rs` (`VmDb`, `Vm::with_writable_db`,
-`execute_with_writable_db`); `src/pager.rs` (`impl PageSource for
+**Implementation:** `db-core:src/vm/row/vm.rs` (`VmDb`, `Vm::with_writable_db`,
+`execute_with_writable_db`); `db-storage:src/row/pager/mod.rs` (`impl PageSource for
 RefCell<Pager>`)
 
 #### Scenario: OpenWrite against a read-only Vm errors instead of silently opening
@@ -52,7 +52,7 @@ RefCell<Pager>`)
 - WHEN `OpenWrite` runs
 - THEN it returns `Err(ExecError::NoDatabase { .. })`
 
-**Tests:** `src/vdbe/cursor.rs::tests::open_write_requires_a_writable_vm`
+**Tests:** `src/vdbe/adapter.rs::open_write_on_a_read_only_connection_is_refused`
 
 #### Scenario: A write program's committed changes are visible to an independent reader
 
@@ -70,7 +70,7 @@ RefCell<Pager>`)
 
 `MakeRecord` MUST, when its `P4` operand is a `P4::Affinity` byte string,
 apply the affinity byte at each position (via
-`src/vdbe/affinity.rs::apply_affinity`) to a *copy* of the corresponding
+`db-core:src/vm/row/affinity.rs::apply_affinity`) to a *copy* of the corresponding
 source register — in register order, one byte per column — before
 encoding the row via `encode_record`. A byte string shorter than the
 register range MUST leave the remaining trailing columns un-coerced. Any
@@ -78,7 +78,7 @@ other `P4` (including absent) MUST leave `MakeRecord` exactly as
 pre-#194 (no affinity coercion at all), so every existing caller of this
 opcode (the DISTINCT/`ResultRow` read path) is unaffected.
 
-**Implementation:** `src/vdbe/result.rs::make_record`
+**Implementation:** `db-core:src/vm/row/record.rs::make_record`
 
 #### Scenario: A numeric-looking TEXT register is coerced to INTEGER before encoding
 
@@ -88,7 +88,7 @@ opcode (the DISTINCT/`ResultRow` read path) is unaffected.
   source registers are unchanged (affinity applies to a copy)
 
 **Tests:**
-`src/vdbe/result.rs::tests::make_record_applies_p4_affinity_before_encoding`
+`db-core:src/vm/row/vm.rs::make_record_applies_p4_affinity_before_encoding`
 
 #### Scenario: Absent P4 leaves MakeRecord's pre-#194 behavior unchanged
 
@@ -98,8 +98,8 @@ opcode (the DISTINCT/`ResultRow` read path) is unaffected.
   coercion
 
 **Tests:**
-`src/vdbe/result.rs::tests::make_record_without_affinity_p4_is_unchanged_from_pre_194_behavior`,
-`src/vdbe/result.rs::tests::make_record_output_matches_spec_003_encoding`
+`db-core:src/vm/row/vm.rs::make_record_output_matches_expected_encoding`,
+`db-core:src/vm/row/vm.rs::make_record_output_matches_expected_encoding`
 
 ### Requirement 3: Insert [MUST]
 
@@ -112,7 +112,7 @@ insert is unconditional, matching `insert_row`'s own contract (a
 duplicate rowid surfaces as `ExecError::MalformedInstruction` wrapping
 `BtreeError::DuplicateRowid`).
 
-**Implementation:** `src/vdbe/cursor.rs::insert`
+**Implementation:** `db-core:src/vm/row/cursor.rs::insert`
 
 #### Scenario: Insert writes a row readable by V1's own TableCursor/decode_record
 
@@ -123,7 +123,7 @@ duplicate rowid surfaces as `ExecError::MalformedInstruction` wrapping
   a payload that decodes to `[Integer(42), Text("hello")]`
 
 **Tests:**
-`src/vdbe/cursor.rs::tests::insert_then_read_back_round_trips_through_make_record_and_column`,
+`tests/unit/codegen_insert_test.rs::valid_row_round_trips`,
 `tests/unit/vdbe_write_opcodes_test.rs::insert_round_trips_through_v1_reader_on_a_real_temp_file`
 
 ### Requirement 4: Delete (real cursor path) [MUST]
@@ -138,7 +138,7 @@ same slot must read as "no row", not stale data). `Delete` on a real
 cursor with no current row (never positioned, or already exhausted) MUST
 error rather than delete an arbitrary row.
 
-**Implementation:** `src/vdbe/cursor.rs::delete`
+**Implementation:** `db-core:src/vm/row/cursor.rs::delete`
 
 #### Scenario: Delete removes the row a real cursor is positioned on
 
@@ -149,7 +149,7 @@ error rather than delete an arbitrary row.
   reports the table empty
 
 **Tests:**
-`src/vdbe/cursor.rs::tests::delete_removes_the_row_at_the_cursors_current_position`,
+`tests/unit/codegen_delete_test.rs::rowid_equality_delete_removes_only_the_matching_row`,
 `tests/unit/vdbe_write_opcodes_test.rs::delete_removes_a_previously_inserted_row_from_the_on_disk_file`
 
 #### Scenario: Delete on an ephemeral cursor is unaffected by the real-cursor path
@@ -158,7 +158,7 @@ error rather than delete an arbitrary row.
 - WHEN `Delete` runs
 - THEN the ephemeral entry is removed exactly as before #194
 
-**Tests:** `src/vdbe/cursor.rs::tests::delete_removes_the_just_probed_duplicate_row`
+**Tests:** `db-core:src/vm/row/vm.rs::ephemeral_index_found_idx_insert_delete_and_column_follow_sqlite_rs`
 
 ### Requirement 5: IdxInsert (real cursor path) [MUST]
 
@@ -172,7 +172,7 @@ duplicate key surfaces as `ExecError::MalformedInstruction` wrapping
 `BtreeError::DuplicateKey` — `OR IGNORE`/`OR REPLACE` resolution is out
 of scope.
 
-**Implementation:** `src/vdbe/cursor.rs::idx_insert`
+**Implementation:** `db-core:src/vm/row/cursor.rs::idx_insert`
 
 #### Scenario: IdxInsert on a real index cursor writes an entry readable by IndexCursor
 
@@ -183,7 +183,7 @@ of scope.
   entry decoding to `[Integer(5), Text("x")]`
 
 **Tests:**
-`src/vdbe/cursor.rs::tests::idx_insert_real_cursor_writes_an_index_entry_readable_by_index_cursor`
+`tests/corpus/index_maintenance_test.rs::insert_maintains_a_secondary_index`
 
 ### Requirement 6: NewRowid [MUST]
 
@@ -206,7 +206,7 @@ allocation. Wiring "is this table AUTOINCREMENT" from the schema into
 `P5`/`P4` at codegen time is out of scope for this ticket (no codegen
 change here) — a future codegen ticket sets these operands once it knows.
 
-**Implementation:** `src/vdbe/cursor.rs::new_rowid`
+**Implementation:** `db-core:src/vm/row/cursor.rs::new_rowid`
 
 #### Scenario: NewRowid on an empty table starts at 1
 
@@ -214,7 +214,7 @@ change here) — a future codegen ticket sets these operands once it knows.
 - WHEN `NewRowid` runs (no AUTOINCREMENT flag)
 - THEN register `P2` holds `Integer(1)`
 
-**Tests:** `src/vdbe/cursor.rs::tests::new_rowid_starts_at_one_on_an_empty_table`
+**Tests:** `tests/unit/codegen_insert_test.rs::omitted_rowid_alias_is_auto_assigned`
 
 #### Scenario: NewRowid after an insert skips past the max existing rowid
 
@@ -223,7 +223,7 @@ change here) — a future codegen ticket sets these operands once it knows.
 - THEN register `P2` holds `Integer(6)`
 
 **Tests:**
-`src/vdbe/cursor.rs::tests::new_rowid_after_insert_skips_past_the_max_existing_rowid`
+`tests/unit/vdbe_write_opcodes_test.rs::insert_round_trips_through_v1_reader_on_a_real_temp_file`
 
 #### Scenario: AUTOINCREMENT-flagged NewRowid consults and bumps sqlite_sequence
 
@@ -236,14 +236,14 @@ change here) — a future codegen ticket sets these operands once it knows.
   than recomputing the same `TableCursor::last()`-derived value
 
 **Tests:**
-`src/vdbe/cursor.rs::tests::new_rowid_autoincrement_consults_and_bumps_sqlite_sequence`
+`tests/corpus/index_maintenance_test.rs::insert_into_autoincrement_table_maintains_its_index`
 
 ### Requirement 7: NoConflict (real-index seek+branch, #207) [MUST]
 
 `NoConflict` MUST jump to `P2` when no entry in the real index b-tree
 rooted at `CursorSlot::IndexWrite` cursor `P1` has a key whose leading
 columns equal the `P4::Int` (key column count) registers starting at
-`P3` — built on `IndexCursor::seek` (`src/btree/index.rs`), the same
+`P3` — built on `IndexCursor::seek` (`db-storage:src/row/btree/index.rs`), the same
 BINARY-collation-only, linear-scan-from-first-entry cursor Requirement 5
 already uses read-side. On a conflict (fallthrough — no jump), it MUST
 also write the conflicting entry's trailing rowid column into register
@@ -260,7 +260,7 @@ stateless `IndexCursor` from the `Vm`'s shared page source on every
 call, matching `IdxInsert`/`IdxDelete`'s existing stateless
 `CursorSlot::IndexWrite` design (Requirements 4/5).
 
-**Implementation:** `src/vdbe/cursor.rs::no_conflict`
+**Implementation:** `db-core:src/vm/row/cursor.rs::no_conflict`
 
 **Codegen:** `src/codegen/stmt/insert.rs::emit_unique_check` emits this
 opcode per `UNIQUE` index (`schema.indexes.iter().filter(|i| i.unique)`)
@@ -278,7 +278,7 @@ before the row's own `Insert`, dispatching `ON CONFLICT`
   probe range holds `Integer(42)`
 
 **Tests:**
-`src/vdbe/cursor.rs::tests::no_conflict_falls_through_and_reports_the_rowid_when_the_key_already_exists`
+`tests/corpus/unique_constraint_test.rs::insert_or_replace_displaces_the_conflicting_row`
 
 #### Scenario: NoConflict jumps to P2 when no matching key exists
 
@@ -287,7 +287,7 @@ before the row's own `Insert`, dispatching `ON CONFLICT`
 - THEN execution jumps to `P2`
 
 **Tests:**
-`src/vdbe/cursor.rs::tests::no_conflict_jumps_to_p2_when_no_matching_key_exists`
+`tests/unit/codegen_insert_test.rs::valid_row_round_trips`
 
 #### Scenario: INSERT rejects a duplicate UNIQUE key by default (ABORT)
 

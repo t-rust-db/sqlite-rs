@@ -21,13 +21,14 @@
 #![deny(unsafe_code)]
 
 mod common;
+mod completion;
 mod dot_commands;
 mod dump;
 mod exec;
+mod highlight;
 mod mode;
 mod pragma_query;
 mod query;
-mod readline;
 mod repl;
 mod tables;
 

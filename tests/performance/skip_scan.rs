@@ -12,7 +12,7 @@
 //!
 //! `src/codegen/select/limit_scan.rs`'s `try_compile_skip_scan_index`
 //! doc comment already flags the honest expectation here:
-//! `IndexCursor::seek` (`src/btree/index.rs`) is a documented Tier 0
+//! `IndexCursor::seek` (`db-storage/src/row/btree/index.rs`) is a documented Tier 0
 //! linear scan, not a real B-tree binary descent, so this skip-scan
 //! walks every index entry rather than truly skipping past a large
 //! group once it stops matching. The measured win, if any, comes from

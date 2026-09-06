@@ -46,7 +46,7 @@ fn scratch_db(label: &str) -> PathBuf {
 
 /// Writes a minimal one-page database (page 1 doubling as a table
 /// b-tree's empty leaf root, rather than a real `sqlite_master` page —
-/// the same simplification `src/btree/insert.rs`'s and
+/// the same simplification `db-storage/src/row/btree/insert.rs`'s and
 /// `src/vdbe/cursor.rs`'s own colocated tests use) to `path` via
 /// `UnixVfs`, and returns its parsed header.
 fn seed_minimal_db(vfs: &UnixVfs, path: &Path, page_size: u32) -> DatabaseHeader {

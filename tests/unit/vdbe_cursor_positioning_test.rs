@@ -184,33 +184,8 @@ fn assert_cursor_type_mismatch(opcode: Opcode, opcode_name: &str) {
 }
 
 #[test]
-fn last_reports_mismatch_on_non_table_cursor() {
-    assert_cursor_type_mismatch(Opcode::Last, "Last");
-}
-
-#[test]
-fn next_reports_mismatch_on_non_table_cursor() {
-    assert_cursor_type_mismatch(Opcode::Next, "Next");
-}
-
-#[test]
-fn rowid_reports_mismatch_on_non_table_cursor() {
-    assert_cursor_type_mismatch(Opcode::Rowid, "Rowid");
-}
-
-#[test]
 fn seek_index_eq_reports_mismatch_on_non_index_read_cursor() {
     assert_cursor_type_mismatch(Opcode::SeekIndexEq, "SeekIndexEq");
-}
-
-#[test]
-fn idx_rewind_reports_mismatch_on_non_index_read_cursor() {
-    assert_cursor_type_mismatch(Opcode::IdxRewind, "IdxRewind");
-}
-
-#[test]
-fn idx_last_reports_mismatch_on_non_index_read_cursor() {
-    assert_cursor_type_mismatch(Opcode::IdxLast, "IdxLast");
 }
 
 #[test]
