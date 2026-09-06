@@ -6,6 +6,8 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-06
+
 ### Added
 
 - `codegen::shadow` (#19): with `SQLITE_RS_CODEGEN=db-core` set, the CLI,
