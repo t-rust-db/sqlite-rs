@@ -31,7 +31,10 @@
 # precisely so the file stays limit-clean (and so the check survives into
 # release builds).
 MVL_LIMIT ?= cargo-mvl-limit
-MVL_LIMIT_EXCLUDE := src/vdbe/adapter.rs src/bin/*
+# src/vdbe.rs and src/vdbe/adapter.rs hold the storage-agnostic boundary
+# (`Rc<dyn PageSource>`, `Box<dyn Cursor>`; db-core ADR 0008) — the same
+# exemption db-core applies to its own vm/row hook traits.
+MVL_LIMIT_EXCLUDE := src/vdbe.rs src/vdbe/adapter.rs src/bin/*
 
 COVERAGE_MIN := 80
 

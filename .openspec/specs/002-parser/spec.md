@@ -301,7 +301,7 @@ unary_op
 
 ## AST Data Structures
 
-Real definitions live in `db-core:src/parser/row/ast.rs`, which is heavily
+Real definitions live in `db-core:src/parser/ast.rs`, which is heavily
 doc-commented; this is the shape, not a copy.
 
 ```rust
@@ -526,7 +526,7 @@ performs the extraction; `make extract-sql-corpus` regenerates it offline.
 
 The AST MUST represent all SQLite SQL constructs without loss of information.
 
-**Implementation:** `db-core:src/parser/row/ast.rs`, `db-core:src/parser/row/printer.rs` (roundtrip)
+**Implementation:** `db-core:src/parser/ast.rs`, `db-core:src/parser/row/printer.rs` (roundtrip)
 
 #### Scenario: Preserve column aliases
 
@@ -562,7 +562,7 @@ The AST MUST represent all SQLite SQL constructs without loss of information.
   `DropView` AST node, and printing it via `Display` and reparsing MUST
   reproduce an equal AST
 
-**Implementation:** `db-core:src/parser/row/ast.rs::CreateView`, `db-core:src/parser/row/ast.rs::DropView`, `db-core:src/parser/row/grammar.rs::Parser::parse_create_view_stmt`, `db-core:src/parser/row/grammar.rs::Parser::parse_drop_view_stmt`
+**Implementation:** `db-core:src/parser/ast.rs::CreateView`, `db-core:src/parser/ast.rs::DropView`, `db-core:src/parser/row/grammar.rs::Parser::parse_create_view_stmt`, `db-core:src/parser/row/grammar.rs::Parser::parse_drop_view_stmt`
 
 **Tests:** `tests/unit/ddl_parser.rs::test_accept_create_view_simple`, `tests/unit/ddl_parser.rs::test_accept_create_view_with_column_list`, `tests/unit/ddl_parser.rs::test_accept_create_view_if_not_exists`, `tests/unit/ddl_parser.rs::test_printer_roundtrip_create_view`, `tests/unit/ddl_parser.rs::test_accept_drop_view`, `tests/unit/ddl_parser.rs::test_accept_drop_view_if_exists`
 

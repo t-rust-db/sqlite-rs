@@ -8,6 +8,13 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ### Changed
 
+- db-core pinned to v0.61.0 (was v0.50.0) with the `codegen-row` feature
+  enabled, and db-storage to v0.5.6 (its matching re-pin), ahead of #19's
+  codegen measurement switch. `crate::parser::ast` is now a facade over
+  `db_core::parser::ast` (db-core moved the AST out of `parser::row`,
+  db-core#147). `src/vdbe.rs` joins `src/vdbe/adapter.rs` in the
+  mvl-limit exemption list as the `dyn PageSource` storage boundary.
+
 - Org move (t-rust-db/sqlite-rs#1): Lab271/sqlite-rs stays leading for
   engine behaviour until archived, tracked by snapshot via
   `make sync-lab271` and `[package.metadata.lab271] synced` (ADR-0039,

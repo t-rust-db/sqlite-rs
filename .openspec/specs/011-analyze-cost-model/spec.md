@@ -47,7 +47,7 @@ dispatched to a dedicated codegen path.
   journal_mode` precedent (`db-core:src/parser/row/grammar.rs:952`).
 
 **Implementation:** `db-core:src/parser/row/grammar.rs::parse_analyze_stmt`,
-`db-core:src/parser/row/ast.rs::Analyze`, `src/codegen/analyze.rs::compile_analyze`
+`db-core:src/parser/ast.rs::Analyze`, `src/codegen/analyze.rs::compile_analyze`
 
 #### Scenario: Bare ANALYZE populates stats for every table
 

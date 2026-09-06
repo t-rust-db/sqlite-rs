@@ -40,6 +40,13 @@ pub mod vdbe;
 pub mod parser {
     pub use db_core::parser::row::*;
 
+    /// The AST, which db-core moved from `parser::row::ast` to the shared
+    /// `parser::ast` (db-core#147, ADR 0002 there); `crate::parser::ast::*`
+    /// keeps resolving.
+    pub mod ast {
+        pub use db_core::parser::ast::*;
+    }
+
     /// Tokenizer plus `Span`, which db-core keeps one level up.
     pub mod tokenizer {
         pub use db_core::parser::row::tokenizer::*;

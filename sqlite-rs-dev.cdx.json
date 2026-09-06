@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-05T12:29:10.000000000Z",
+    "timestamp": "2026-09-05T18:11:50.000000000Z",
     "tools": [
       {
         "vendor": "sqlite-rs",
@@ -26,7 +26,7 @@
     "properties": [
       {
         "name": "sqlite-rs:generated-at-commit",
-        "value": "d0d6e2651b91c0a402fe0e0d9e8337b024e2c299"
+        "value": "a19256024a6c7308d0e2df78e184b4bec4184911"
       }
     ]
   },
@@ -397,25 +397,25 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:cargo/db-core@0.50.0",
+      "bom-ref": "pkg:cargo/db-core@0.61.0",
       "name": "db-core",
-      "version": "0.50.0",
+      "version": "0.61.0",
       "scope": "required",
       "licenses": [
         {
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/db-core@0.50.0"
+      "purl": "pkg:cargo/db-core@0.61.0"
     },
     {
       "type": "library",
-      "bom-ref": "pkg:cargo/db-storage@0.5.5",
+      "bom-ref": "pkg:cargo/db-storage@0.5.6",
       "name": "db-storage",
-      "version": "0.5.5",
+      "version": "0.5.6",
       "scope": "required",
       "licenses": [],
-      "purl": "pkg:cargo/db-storage@0.5.5"
+      "purl": "pkg:cargo/db-storage@0.5.6"
     },
     {
       "type": "library",
