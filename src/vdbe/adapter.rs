@@ -25,7 +25,7 @@ use db_core::vm::row::{
 use crate::btree::{self, IndexCursor, IndexRow, Payload, TableCursor};
 use crate::header::{DatabaseHeader, JournalMode, SynchronousMode};
 use crate::record::{decode_record, Value};
-use crate::vfs::PageSource;
+use crate::vfs::{PageError, PageSource};
 
 type SharedPager = Rc<RefCell<crate::pager::Pager>>;
 
@@ -341,6 +341,24 @@ impl Cursor for IndexCursorAdapter {
 
 // --------------------------------------------------------------- factory
 
+/// Type-erases any shared page source into the `Rc<dyn PageSource>` this
+/// module stores. Kept here — the one `dyn` storage boundary (ADR-0013,
+/// `MVL_LIMIT_EXCLUDE`) — so `src/vdbe.rs` and every caller stay generic
+/// and limit-clean. The extra `Rc` hop is one pointer chase per page
+/// read; `P` may itself be unsized (an `Rc<dyn PageSource>` a caller
+/// already holds).
+struct ErasedSource<P: ?Sized>(Rc<P>);
+
+impl<P: PageSource + ?Sized> PageSource for ErasedSource<P> {
+    fn read_page(&self, page_num: u32) -> Result<Rc<[u8]>, PageError> {
+        self.0.read_page(page_num)
+    }
+}
+
+fn erase<P: PageSource + ?Sized + 'static>(source: Rc<P>) -> Rc<dyn PageSource> {
+    Rc::new(ErasedSource(source))
+}
+
 /// Resolves `OpenRead`/`OpenWrite` root pages to the adapters above.
 pub struct StorageFactory {
     source: Rc<dyn PageSource>,
@@ -350,9 +368,12 @@ pub struct StorageFactory {
 
 impl StorageFactory {
     /// Cursors over `source` only; `OpenWrite` is refused.
-    pub fn read_only(source: Rc<dyn PageSource>, header: DatabaseHeader) -> Self {
+    pub fn read_only<P: PageSource + ?Sized + 'static>(
+        source: Rc<P>,
+        header: DatabaseHeader,
+    ) -> Self {
         StorageFactory {
-            source,
+            source: erase(source),
             writer: None,
             header,
         }
@@ -360,13 +381,13 @@ impl StorageFactory {
 
     /// Cursors that read through `source` and write through `pager` (the
     /// same `Rc<RefCell<Pager>>` unsized into `source`, ADR-0017).
-    pub fn writable(
-        source: Rc<dyn PageSource>,
+    pub fn writable<P: PageSource + ?Sized + 'static>(
+        source: Rc<P>,
         pager: SharedPager,
         header: DatabaseHeader,
     ) -> Self {
         StorageFactory {
-            source,
+            source: erase(source),
             writer: Some(pager),
             header,
         }
@@ -419,22 +440,25 @@ pub struct PagerTransaction {
 impl PagerTransaction {
     /// A read-only connection: BEGIN/COMMIT only toggle state; integrity
     /// check still reads `source`.
-    pub fn read_only(source: Rc<dyn PageSource>, header: DatabaseHeader) -> Self {
+    pub fn read_only<P: PageSource + ?Sized + 'static>(
+        source: Rc<P>,
+        header: DatabaseHeader,
+    ) -> Self {
         PagerTransaction {
-            source,
+            source: erase(source),
             writer: None,
             header,
         }
     }
 
     /// A writable connection over `pager`.
-    pub fn writable(
-        source: Rc<dyn PageSource>,
+    pub fn writable<P: PageSource + ?Sized + 'static>(
+        source: Rc<P>,
         pager: SharedPager,
         header: DatabaseHeader,
     ) -> Self {
         PagerTransaction {
-            source,
+            source: erase(source),
             writer: Some(pager),
             header,
         }

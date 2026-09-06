@@ -71,9 +71,9 @@ pub fn execute_with_params(
 
 /// Runs `program` read-only over `source` (any `PageSource`: a
 /// `VfsPageSource`, a `Pager`, or a shared `Rc<RefCell<Pager>>`).
-pub fn execute_with_db(
+pub fn execute_with_db<P: PageSource + ?Sized + 'static>(
     program: &Program,
-    source: Rc<dyn PageSource>,
+    source: Rc<P>,
     header: DatabaseHeader,
 ) -> Result<Vec<Vec<Value>>, ExecError> {
     let mut vm = read_only_vm(source, header);
@@ -81,9 +81,9 @@ pub fn execute_with_db(
 }
 
 /// [`execute_with_db`] with parameters bound.
-pub fn execute_with_db_and_params(
+pub fn execute_with_db_and_params<P: PageSource + ?Sized + 'static>(
     program: &Program,
-    source: Rc<dyn PageSource>,
+    source: Rc<P>,
     header: DatabaseHeader,
     params: Vec<Value>,
 ) -> Result<Vec<Vec<Value>>, ExecError> {
@@ -138,7 +138,7 @@ fn implicit_commit(vm: &Vm, pager: &Rc<RefCell<crate::pager::Pager>>) -> Result<
     Ok(())
 }
 
-fn read_only_vm(source: Rc<dyn PageSource>, header: DatabaseHeader) -> Vm {
+fn read_only_vm<P: PageSource + ?Sized + 'static>(source: Rc<P>, header: DatabaseHeader) -> Vm {
     let mut vm = Vm::new();
     vm.set_text_encoding(header.text_encoding);
     vm.set_cursor_factory(Box::new(StorageFactory::read_only(
@@ -154,17 +154,16 @@ fn writable_vm(
     header: DatabaseHeader,
     autocommit: bool,
 ) -> Vm {
-    let source: Rc<dyn PageSource> = Rc::clone(&pager) as Rc<dyn PageSource>;
     let mut vm = Vm::new();
     vm.set_text_encoding(header.text_encoding);
     vm.set_autocommit(autocommit);
     vm.set_cursor_factory(Box::new(StorageFactory::writable(
-        Rc::clone(&source),
+        Rc::clone(&pager),
         Rc::clone(&pager),
         header,
     )));
     vm.set_transaction_hook(Box::new(PagerTransaction::writable(
-        source,
+        Rc::clone(&pager),
         Rc::clone(&pager),
         header,
     )));
