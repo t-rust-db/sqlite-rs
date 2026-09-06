@@ -154,6 +154,9 @@ VERSION_MAP = {
     15: ("V6", 1, "#354"),  16: ("V6", 2, "#354"),
     17: ("V6", 3, "#354"),
     18: ("V7", 2, "#421"),
+    # t-rust-db migration epic (#1): phases 1–3 (db-cli, db-storage, db-core
+    # vm) shipped as 0.19.0; phase 4 (#19 codegen repoint, #20, #21) next.
+    19: ("t-rust-db migration", 3, "#1"),
 }
 
 
