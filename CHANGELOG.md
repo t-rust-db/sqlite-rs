@@ -6,6 +6,16 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Added
+
+- `codegen::shadow` (#19): with `SQLITE_RS_CODEGEN=db-core` set, the CLI,
+  REPL and sqllogictest runner hand every statement to db-core's
+  `codegen::row` first and fall back to this crate's codegen on rejection,
+  logging each attempt (`OK`/`FALLBACK`, reason, SQL) to
+  `SQLITE_RS_CODEGEN_LOG` (default `target/codegen-shadow.log`). Off by
+  default; it exists to measure db-core#175's gap against the oracle
+  suites instead of estimating it.
+
 ### Changed
 
 - db-core pinned to v0.61.0 (was v0.50.0) with the `codegen-row` feature
