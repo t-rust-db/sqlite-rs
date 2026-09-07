@@ -6,6 +6,15 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Changed
+
+- db-core pinned to v0.61.1 and db-storage to v0.5.7 (its matching
+  re-pin); column-rs re-pinned alongside. db-core hoisted the scalar
+  function and coercion kernels to `db_core::{functions,coerce}`
+  (db-core#122), so spec `Tests:` links and the `version-pin` site moved
+  from `db-core:src/vm/row/{functions,coerce}.rs` to
+  `db-core:src/{functions,coerce}.rs`. SBOMs regenerated.
+
 ## [0.19.0] - 2026-09-06
 
 ### Added

@@ -318,7 +318,7 @@ The 13 arithmetic-category opcodes — `Add`, `Subtract`, `Multiply`,
 `Divide`, `Remainder`, `Not`, `BitAnd`, `BitOr`, `ShiftLeft`,
 `ShiftRight`, `BitNot`, `Concat`, `Cast` — MUST delegate all overflow,
 NULL-propagation, and numeric/text-coercion behavior to spec 008's
-`db-core:src/vm/row/coerce.rs` (Requirement 5 there: `i64` overflow promotes to
+`db-core:src/coerce.rs` (Requirement 5 there: `i64` overflow promotes to
 REAL, never wraps; bitwise/shift operands coerce to INTEGER, `||`
 operands coerce to TEXT) and `db-core:src/value.rs` (Requirement 4 there:
 NULL propagates through arithmetic); the opcode layer supplies only
@@ -331,7 +331,7 @@ INTEGER) into `P2`, and — unlike `Not` — MUST write NULL when `P1` is
 NULL, since `~NULL` stays NULL rather than resolving to a definite
 value (#139).
 
-**Implementation:** `db-core:src/vm/row/coerce.rs` (#89)
+**Implementation:** `db-core:src/coerce.rs` (#89)
 
 #### Scenario: Add/Subtract/Divide/Remainder read two registers and write one
 
@@ -343,9 +343,9 @@ value (#139).
   kernel, and writes the result to its destination register — the opcode
   itself performs no arithmetic
 
-**Tests:** `db-core:src/vm/row/coerce.rs::arithmetic_matches_oracle_coercion_vectors`,
-`db-core:src/vm/row/coerce.rs::tests::null_propagates_through_every_arithmetic_opcode`,
-`db-core:src/vm/row/coerce.rs::tests::divide_by_zero_yields_null_not_a_panic`
+**Tests:** `db-core:src/coerce.rs::arithmetic_matches_oracle_coercion_vectors`,
+`db-core:src/coerce.rs::tests::null_propagates_through_every_arithmetic_opcode`,
+`db-core:src/coerce.rs::tests::divide_by_zero_yields_null_not_a_panic`
 
 #### Scenario: Not complements a register's truthiness and leaves NULL as NULL
 
@@ -376,10 +376,10 @@ value (#139).
   `s || 'x'`) exactly, including negative-shift-amount and
   shift-magnitude-≥64 edge cases (SQLite's `vdbe.c` reversal/clamp rule)
 
-**Tests:** `db-core:src/vm/row/coerce.rs::bitwise_and_or_not_match_oracle_vectors`,
-`db-core:src/vm/row/coerce.rs::tests::bit_not_complements_and_propagates_null`,
-`db-core:src/vm/row/coerce.rs::tests::null_propagates_through_bitwise_shift_and_concat`,
-`db-core:src/vm/row/coerce.rs::tests::shift_handles_negative_and_oversized_amounts`,
+**Tests:** `db-core:src/coerce.rs::bitwise_and_or_not_match_oracle_vectors`,
+`db-core:src/coerce.rs::tests::bit_not_complements_and_propagates_null`,
+`db-core:src/coerce.rs::tests::null_propagates_through_bitwise_shift_and_concat`,
+`db-core:src/coerce.rs::tests::shift_handles_negative_and_oversized_amounts`,
 `tests/unit/codegen_expr_test.rs::walker_vectors_pass_through_the_compiled_path`
 
 #### Scenario: Cast forces P1's target affinity via the kernel's own CAST rule, never MustBeInt/RealAffinity
@@ -409,14 +409,14 @@ value (#139).
 The single function-category opcode, `Function`, MUST dispatch by a P4
 function-descriptor (name + arity, e.g. `"abs(1)"`, `"like(2)"`,
 `"round(2)"`) into spec 008's scalar-function registry
-(`db-core:src/vm/row/functions.rs`, Requirement 6 there), reading its argument
+(`db-core:src/functions.rs`, Requirement 6 there), reading its argument
 registers (a contiguous run starting at `P2`) and writing the result to
 `P3`. `Function` MUST NOT contain any function-specific logic itself —
 adding a scalar function to spec 008's registry MUST be sufficient to make
 it callable via this opcode, with no VDBE-layer change required.
 
 **Implementation:** `db-core:src/vm/row/vm.rs::function` (#91; registry itself is
-`db-core:src/vm/row/functions.rs`, existing, spec 008)
+`db-core:src/functions.rs`, existing, spec 008)
 
 #### Scenario: Function dispatches by name+arity descriptor to the shared registry
 

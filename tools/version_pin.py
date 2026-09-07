@@ -58,7 +58,7 @@ PINNED_LITERALS = [
     # site moved with the VDBE (t-rust-db/sqlite-rs#18); checked when that
     # checkout is present, reported as skipped otherwise.
     (
-        "db-core:src/vm/row/functions.rs",
+        "db-core:src/functions.rs",
         re.compile(r'fn sqlite_version.*?Value::Text\("([^"]+)"', re.DOTALL),
         "sqlite_version() return literal",
     ),
