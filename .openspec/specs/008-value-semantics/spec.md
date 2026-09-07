@@ -235,7 +235,7 @@ arithmetic that overflows `i64` MUST promote the result to REAL rather
 than silently wrapping (the CVE-2025-29087/3277 class). `CAST(... AS
 INTEGER)` on a REAL truncates toward zero.
 
-**Implementation:** `db-core:src/vm/row/coerce.rs`
+**Implementation:** `db-core:src/coerce.rs`
 
 **Corpus:** `tests/corpus/expr_vectors/coercion.jsonl`
 
@@ -283,7 +283,7 @@ arguments. `substr()`'s index arithmetic (negative/zero `Y`, negative
 `Z`) MUST match SQLite's `substrFunc` exactly, not a simplified
 one-sided-negative-index approximation.
 
-**Implementation:** `db-core:src/vm/row/functions.rs`
+**Implementation:** `db-core:src/functions.rs`
 
 **Corpus:** `tests/corpus/expr_vectors/functions.jsonl`
 
@@ -343,4 +343,4 @@ REAL is tracked as a follow-up, not solved by this requirement.
   opcode (Requirement 7 there, which names `"like(2)"` as a P4
   descriptor) needs no LIKE-specific VDBE logic
 
-**Tests:** `db-core:src/vm/row/functions.rs::tests::like_and_glob_match_oracle_semantics`
+**Tests:** `db-core:src/functions.rs::tests::like_and_glob_match_oracle_semantics`
