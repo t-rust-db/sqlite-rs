@@ -38,7 +38,7 @@ you'll use often:
 | `make verify` | Full gate: coverage (`check-coverage`), supply-chain (`check-deny`), qualified-subset (`check-mvl-limit`), module layout (`check-mod-files`) |
 | `make assurance` | Spec → code → test traceability dashboard |
 
-`make test-corpus`, `make test-parity`, and `make test-sqllogictest` shell out
+`make test-corpus` and `make test-sqllogictest` shell out
 to a pinned `sqlite3` and are slower; they're not part of the default `cargo
 test` run but are expected to pass before a PR touching engine behavior
 merges.

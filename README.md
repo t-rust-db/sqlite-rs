@@ -159,7 +159,7 @@ cargo doc --open
 
 ```bash
 make test          # Unit + integration tests
-make test-corpus   # Oracle parity tests (requires pinned sqlite3)
+make test-corpus   # Oracle-diff fixture corpus (requires pinned sqlite3); full oracle parity: t-rust-db/benchmark parity/sqlite-rs
 make lint          # Clippy + fmt
 make bench         # Criterion benchmarks (requires pinned sqlite3)
 ```

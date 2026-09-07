@@ -127,11 +127,7 @@ from pathlib import Path
 SPEC_DIR = Path(__file__).parent.parent / ".openspec" / "specs"
 REPO_ROOT = Path(__file__).parent.parent.resolve()
 EBNF_PATH = REPO_ROOT / ".openspec" / "grammar" / "sqlite.ebnf"
-PARITY_DIR = REPO_ROOT / "tests" / "parity"
 
-# The 4 gated comparison dimensions from issue #72 (VM instructions is
-# informational-only and deliberately excluded from this count).
-PARITY_DIMENSIONS = ("acceptance", "output", "schema", "plan")
 CARGO_TOML = REPO_ROOT / "Cargo.toml"
 PLAN_PATH = REPO_ROOT / ".openspec" / "plan.md"
 OPCODES_JSON = REPO_ROOT / "tools" / "opcodes-v2.json"
@@ -203,43 +199,13 @@ def grammar_model():
     return counts
 
 
-def parity_model():
-    """Per-V-block dimension coverage from tests/parity/vNN.rs (issue #72).
-
-    Heuristic, same style as grammar_model()'s regex counting: for each
-    vNN.rs file, a #[test] fn counts toward a dimension if it is not
-    #[ignore]d and its name mentions that dimension. Approximate (name-based,
-    not AST-based) by design — good enough for a progress indicator, not a
-    correctness check.
-    """
-    if not PARITY_DIR.exists():
-        return {}
-    blocks = {}
-    for path in sorted(PARITY_DIR.glob("v[0-9][0-9].rs")):
-        block = path.stem.upper()
-        text = path.read_text()
-        fns = re.split(r"(?=#\[test\])", text)
-        dims_hit = set()
-        for fn in fns:
-            if not fn.startswith("#[test]"):
-                continue
-            if re.search(r"#\[test\]\s*\n\s*#\[ignore", fn):
-                continue
-            name_m = re.search(r"fn\s+(\w+)", fn)
-            name = name_m.group(1) if name_m else ""
-            for dim in PARITY_DIMENSIONS:
-                if dim in name:
-                    dims_hit.add(dim)
-        blocks[block] = len(dims_hit)
-    return blocks
-
 
 def opcode_model():
     """VDBE opcodes dispatched (db-core `src/vm/row/vm.rs::step`) vs. harvested scope
     (`tools/opcodes-v2.json`, #58/#65). Returns (implemented, total) or
     None if either input is missing.
 
-    Heuristic, same style as parity_model()/tier_model(): an opcode
+    Heuristic, same style as tier_model(): an opcode
     counts as implemented if `dispatch`'s match has a real arm for it,
     not the `other => Unimplemented` catch-all. `Opcode::ALL`
     (db-core `vm::row::Opcode::ALL`) is checked against this same JSON by
@@ -334,7 +300,7 @@ def tier_model():
 def report_model():
     """Print the Model level: totals only. Returns detail lines for --verbose.
 
-    Plan position (plan.md + Cargo.toml) + grammar/parity/tier/opcode/
+    Plan position (plan.md + Cargo.toml) + grammar/tier/opcode/
     qualified-subset models. Each model line here is a total; the
     per-V-block/per-tier/per-file breakdown behind it is returned as
     detail lines, printed under a separate "Model Detail" section only
@@ -383,24 +349,6 @@ def report_model():
             print(f"  DRIFT: grammar tags not in plan.md value blocks: {', '.join(unknown_tags)}")
     else:
         print("Grammar model:        .openspec/grammar/sqlite.ebnf missing")
-    parity = parity_model()
-    if parity:
-        n_gated = len(PARITY_DIMENSIONS)
-        gated_blocks = sum(1 for n in parity.values() if n > 0)
-        denom = len(blocks) or len(parity)
-        print(f"Parity:               {gated_blocks}/{denom} plan blocks gated (of {n_gated} dimensions each) — tests/parity/ (#72)")
-        parts = []
-        pending = []
-        for block in sorted(parity):
-            n = parity[block]
-            if n == 0:
-                pending.append(block)
-            else:
-                parts.append(f"{block} {n}/{n_gated}")
-        summary = " · ".join(parts)
-        if pending:
-            summary += (" · " if summary else "") + f"{pending[0]}+ pending"
-        detail.append(f"Parity:               {summary}")
     tiers = tier_model()
     if tiers:
         active_total = sum(a for a, _ in tiers.values())

@@ -72,10 +72,12 @@ a trivial budget.
 
 ## Test layout conventions
 
-- **`tests/{corpus,parity,tiers,unit}/` are the only test subdirectories**
-  with a defined meaning (oracle-diff corpus, per-V-block oracle parity,
-  tier-model contracts, public-API unit tests, respectively — see the
-  tier-stub-flip and spec-traceability conventions above).
+- **`tests/{corpus,tiers,unit}/` are the only test subdirectories**
+  with a defined meaning (oracle-diff corpus, tier-model contracts,
+  public-API unit tests, respectively — see the tier-stub-flip and
+  spec-traceability conventions above). Full oracle parity (the former
+  `tests/parity/`) lives only in t-rust-db/benchmark `parity/sqlite-rs`
+  (ADR-0041); specs link it as `benchmark:parity/sqlite-rs/...`.
 - **Property tests live under `tests/proptest/`.** `tests/proptest/record_proptest.rs`,
   `tests/proptest/semantics_proptest.rs`, `tests/proptest/tokenizer_proptest.rs`
   are each declared as an explicit `[[test]]` in `Cargo.toml` (subdirectory
@@ -134,7 +136,8 @@ these conventions in sync with how #56 is actually structured:
 - **Cross-reference the other tracked regimes at the bottom.** An epic ends
   with a `## Related regimes` line pointing at the tier-suite ticket (tier
   stubs flip as phases land — see tier-stub-flip convention above), the
-  parity-suite ticket (new V-block dimensions activate per phase), and any
+  parity-suite ticket in t-rust-db/benchmark (new V-block dimensions
+  activate per phase), and any
   corpus follow-on ticket — so a reader can jump straight to the
   cross-cutting tickets a phase touches instead of re-deriving them.
 
