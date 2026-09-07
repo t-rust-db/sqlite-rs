@@ -1,6 +1,6 @@
 [package]
 name = "sqlite-rs"
-version = "0.19.0"
+version = "0.19.1"
 edition = "2021"
 publish = false
 license = "Apache-2.0"
@@ -14,11 +14,11 @@ categories = ["database", "database-implementations"]
 # First-party t-rust-db crates, pinned to release tags (ADR-0040). Exactly
 # the features this crate uses, nothing by default. Bumping a tag is a
 # reviewed dependency update: check-deny, cargo vet, sbom, full test run.
-db-storage = { version = "0.5.8", git = "https://github.com/t-rust-db/db-storage", tag = "v0.5.8", default-features = false, features = ["row"] }
+db-storage = { version = "0.5.9", git = "https://github.com/t-rust-db/db-storage", tag = "v0.5.9", default-features = false, features = ["row"] }
 # Parser (t-rust-db/sqlite-rs#17): db-core's parser::row is this crate's
 # own parser, ported; a strict superset until Lab271/sqlite-rs#701/#702
 # land (db-core ADR 0009). More db-core features follow with #18/#19.
-db-core = { version = "0.62.1", git = "https://github.com/t-rust-db/db-core", tag = "v0.62.1", default-features = false, features = ["parser-row", "vm-row", "codegen-row"] }
+db-core = { version = "0.68.1", git = "https://github.com/t-rust-db/db-core", tag = "v0.68.1", default-features = false, features = ["parser-row", "vm-row", "codegen-row"] }
 # CLI-only (readline, history, REPL loop, output modes — t-rust-db/sqlite-rs#14/#15):
 # optional so library consumers with `default-features = false` never pull
 # it (or its libc/dirs closure) in.
@@ -201,7 +201,7 @@ path = "tests/proptest/btree_proptest.rs"
 # Same crate, plus its `test-support` feature (`btree::test_minimal_db`) for
 # this crate's own unit tests — feature unification keeps it out of release
 # builds (t-rust-db/db-storage#13).
-db-storage = { version = "0.5.8", git = "https://github.com/t-rust-db/db-storage", tag = "v0.5.8", default-features = false, features = ["row", "test-support"] }
+db-storage = { version = "0.5.9", git = "https://github.com/t-rust-db/db-storage", tag = "v0.5.9", default-features = false, features = ["row", "test-support"] }
 proptest = "1"
 criterion = "0.8"
 

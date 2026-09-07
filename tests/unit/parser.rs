@@ -683,8 +683,10 @@ fn test_window_function_parses_but_frames_are_unsupported() {
         "SELECT sum(x) OVER (ORDER BY x ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) FROM t",
     );
     assert!(msg.contains("window frame"), "message: {msg}");
-    let msg = unsupported("SELECT sum(x) FILTER (WHERE x > 0) OVER (ORDER BY x) FROM t");
-    assert!(msg.contains("FILTER"), "message: {msg}");
+    // `FILTER (WHERE ...)` parses since db-core#67 (v0.65.0); it is carried
+    // on the call's `tail` and rejected by codegen, not by the parser.
+    let select = accept("SELECT sum(x) FILTER (WHERE x > 0) OVER (ORDER BY x) FROM t");
+    assert_eq!(select.columns.len(), 1);
 }
 
 #[test]

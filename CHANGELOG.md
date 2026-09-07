@@ -6,6 +6,21 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-09-07
+
+### Changed
+
+- db-core pinned to v0.68.1 (was v0.62.1) and db-storage to v0.5.9. db-core
+  0.65 replaced `ExprKind::FunctionCall.over` with `tail: Option<FunctionTail
+  { filter, over }>` (db-core#67): the codegen sites that matched `over: None`
+  now match `tail: None`, and `classify_aggregate`/`compile_value` reject a
+  `FILTER (WHERE ...)` or `OVER` tail with an explicit `Unsupported` instead
+  of mis-compiling; the parser test that expected FILTER to be unsupported now
+  expects it to parse. `codegen::shadow`'s schema projection is lossless
+  (collations, WITHOUT ROWID, STRICT, virtual, SQL, index UNIQUE/DESC/COLLATE,
+  db-core#205) and passes views (`compile_statement_with_views`, db-core#206).
+  SBOMs regenerated.
+
 ### Changed
 
 - db-core pinned to v0.62.1 and db-storage to v0.5.8 (its matching re-pin). SBOMs regenerated.

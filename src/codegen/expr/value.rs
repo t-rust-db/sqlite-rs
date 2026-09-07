@@ -252,15 +252,21 @@ pub(crate) fn compile_value(
         }
 
         ExprKind::FunctionCall {
-            name, args, over, ..
+            name, args, tail, ..
         } => {
             // The parser (db-core's `parser::row`, #17) accepts inline
-            // `OVER (...)`; the planner has no window pass yet (V9), and
-            // compiling the call as a plain scalar/aggregate would return
-            // wrong rows silently — refuse instead.
-            if over.is_some() {
+            // `OVER (...)` and `FILTER (WHERE ...)` (db-core#67); the
+            // planner has no window pass yet (V9) and no FILTER support,
+            // and compiling the call as a plain scalar/aggregate would
+            // return wrong rows silently — refuse instead.
+            if let Some(tail) = tail.as_deref() {
+                let reason = if tail.over.is_some() {
+                    "window functions (OVER) not yet supported"
+                } else {
+                    "FILTER (WHERE ...) on a function call not yet supported"
+                };
                 return Err(CodegenError::Unsupported {
-                    reason: "window functions (OVER) not yet supported".to_string(),
+                    reason: reason.to_string(),
                 });
             }
             // Aggregates need a grouping/accumulator pass this V2

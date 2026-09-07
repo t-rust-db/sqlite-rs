@@ -459,7 +459,7 @@ mod tests {
             kind: ExprKind::FunctionCall {
                 name: "coalesce".to_string(),
                 distinct: false,
-                over: None,
+                tail: None,
                 args: FunctionArgs::List(vec![col(None, "id")]),
             },
             span: span(),
@@ -474,7 +474,7 @@ mod tests {
             kind: ExprKind::FunctionCall {
                 name: "count".to_string(),
                 distinct: false,
-                over: None,
+                tail: None,
                 args: FunctionArgs::Star,
             },
             span: span(),
