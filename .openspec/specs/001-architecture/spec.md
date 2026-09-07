@@ -381,7 +381,7 @@ Development MUST use SQLite's test suite as the compatibility oracle.
 - WHEN both SQLite and sqlite-rs execute Q on D
 - THEN the results MUST be identical (byte-for-byte for BLOBs, value-equal otherwise)
 
-**Tests:** `tests/parity/v01.rs::acceptance_and_output_match_across_readable_corpus`
+**Tests:** `benchmark:parity/sqlite-rs/tests/parity/v01.rs::acceptance_and_output_match_across_readable_corpus`
 
 ### Requirement 4: Tier 0 Read-Completeness [MUST]
 

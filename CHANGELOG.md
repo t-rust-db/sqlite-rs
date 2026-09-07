@@ -6,6 +6,15 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Removed
+
+- `tests/parity/` and `make test-parity` (#28): full oracle parity testing
+  lives only in t-rust-db/benchmark `parity/sqlite-rs` (ADR-0041,
+  superseding ADR-0004's `tests/parity/` clause). Spec 001/009 evidence
+  links became `benchmark:parity/sqlite-rs/...` cross-repo links; the
+  assurance dashboard's `Parity:` line is gone. The fixture-diff corpus,
+  sqllogictest slice and tier contracts stay.
+
 ### Changed
 
 - db-core pinned to v0.61.1 and db-storage to v0.5.7 (its matching

@@ -209,7 +209,7 @@ the just-produced duplicate row if present.
   correctly, which is how `SELECT * FROM t` stayed wrong after
   `SELECT id FROM t` was fixed (#131, #134)
 
-**Tests:** `tests/unit/codegen.rs::star_expansion_reads_the_rowid_alias_via_rowid`, `tests/unit/codegen.rs::rowid_alias_result_column_reads_via_rowid_not_column`, `tests/parity/v02.rs::star_expansion_acceptance_and_output_match_for_a_rowid_alias_table`
+**Tests:** `tests/unit/codegen.rs::star_expansion_reads_the_rowid_alias_via_rowid`, `tests/unit/codegen.rs::rowid_alias_result_column_reads_via_rowid_not_column`, `benchmark:parity/sqlite-rs/tests/parity/v02.rs::star_expansion_acceptance_and_output_match_for_a_rowid_alias_table`
 
 #### Scenario: `WHERE rowid = <literal or ?>` seeks directly instead of scanning
 
@@ -790,7 +790,7 @@ to produce NULL, not only 0/1.
   the jump-if-null is spelled as explicit `IsNull` operand probes ahead
   of the compare, which a bare target swap does not emit
 
-**Tests:** `tests/unit/codegen.rs::not_over_a_comparison_probes_for_null_instead_of_swapping_targets`, `tests/unit/codegen.rs::ne_probes_for_null_like_a_negated_eq`, `tests/parity/v02.rs::three_valued_logic_acceptance_and_output_match_over_null_rows`
+**Tests:** `tests/unit/codegen.rs::not_over_a_comparison_probes_for_null_instead_of_swapping_targets`, `tests/unit/codegen.rs::ne_probes_for_null_like_a_negated_eq`, `benchmark:parity/sqlite-rs/tests/parity/v02.rs::three_valued_logic_acceptance_and_output_match_over_null_rows`
 
 #### Scenario: NOT (x IN (...)) and x NOT IN (...) compile to the same program
 

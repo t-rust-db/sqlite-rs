@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: clean bench-compile-path help test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures fixtures-bench bench bench-cli bench-status bench-point-lookup extract-sql-corpus test-corpus test-parity test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
+.PHONY: clean bench-compile-path help test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures fixtures-bench bench bench-cli bench-status bench-point-lookup extract-sql-corpus test-corpus test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
 
 # Qualified-subset gate (issue #23). Boundary policy:
 #   - Tier 0 core (vfs, pager, header, record, btree, schema) now lives in
@@ -78,9 +78,6 @@ test-isolation: ## Just the Tier 0 layer isolation guard (spec 001-architecture 
 test-corpus: ## Run the fixture corpus / oracle harness against a pinned real sqlite3 (see .openspec/specs/004-corpus)
 	cargo test --locked --test corpus
 
-test-parity: ## Run the per-V-block parity mirror against a pinned real sqlite3 (see #72)
-	cargo test --locked --test parity
-
 test-sqllogictest: ## Run the sqllogictest slice against a pinned real sqlite3, refreshing tools/sqllogictest-status.json (#96)
 	cargo test --locked --test sqllogictest -- --nocapture
 
@@ -155,7 +152,7 @@ lint: ## Run clippy and check formatting
 	# manual `make bench`/`make bench-cli` workflow, not part of the
 	# regular CI gate, so it deliberately isn't wired up here.
 	cargo clippy --locked --lib --bins --tests --examples -- -D warnings
-	# `[[test]] test = false` targets (corpus/parity/sqllogictest/
+	# `[[test]] test = false` targets (corpus/sqllogictest/
 	# point_lookup_perf) opt out of the default `cargo test` run (see
 	# their Cargo.toml comments) but `--tests` above doesn't build or
 	# lint them either — they went uncompiled and unlinted for a while
@@ -164,7 +161,7 @@ lint: ## Run clippy and check formatting
 	# every gate above until `cargo clippy --test sqllogictest` was run
 	# directly). Named explicitly rather than discovered, matching how
 	# `--tests` itself isn't a wildcard either.
-	cargo clippy --locked --test corpus --test parity --test sqllogictest --test point_lookup_perf -- -D warnings
+	cargo clippy --locked --test corpus --test sqllogictest --test point_lookup_perf -- -D warnings
 	cargo fmt -- --check
 
 hooks-install: ## Install git hooks (tools/hooks/) into the shared hooks dir — covers every worktree at once
