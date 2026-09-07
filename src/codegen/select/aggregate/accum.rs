@@ -36,13 +36,25 @@ pub(in crate::codegen::select) fn classify_aggregate(
         name,
         args,
         distinct,
-        over: None,
+        tail,
     } = &expr.kind
     else {
         return Err(CodegenError::Unsupported {
             reason: "classify_aggregate called on a non-call expression".to_string(),
         });
     };
+    // db-core's grammar parses `FILTER (WHERE ...)` and `OVER (...)` on any
+    // call (db-core#67); this compiler implements neither.
+    if let Some(tail) = tail.as_deref() {
+        let what = if tail.over.is_some() {
+            "OVER"
+        } else {
+            "FILTER (WHERE ...)"
+        };
+        return Err(CodegenError::Unsupported {
+            reason: format!("aggregate with {what} is not yet supported"),
+        });
+    }
     let arg = match args {
         FunctionArgs::Star => None,
         FunctionArgs::List(list) if list.len() <= 1 => list.first().cloned(),

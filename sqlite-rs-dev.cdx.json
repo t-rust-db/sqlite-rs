@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-07T05:07:20.000000000Z",
+    "timestamp": "2026-09-07T13:43:37.000000000Z",
     "tools": [
       {
         "vendor": "sqlite-rs",
@@ -13,20 +13,20 @@
     ],
     "component": {
       "type": "application",
-      "bom-ref": "pkg:cargo/sqlite-rs@0.19.0",
+      "bom-ref": "pkg:cargo/sqlite-rs@0.19.1",
       "name": "sqlite-rs",
-      "version": "0.19.0",
+      "version": "0.19.1",
       "licenses": [
         {
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/sqlite-rs@0.19.0"
+      "purl": "pkg:cargo/sqlite-rs@0.19.1"
     },
     "properties": [
       {
         "name": "sqlite-rs:generated-at-commit",
-        "value": "45f379d4677540690a174b757b1d30f2bcbd5315"
+        "value": "fb062f62734281b874d0201efc99aa2a3f50d0b1"
       }
     ]
   },
@@ -397,25 +397,25 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:cargo/db-core@0.62.1",
+      "bom-ref": "pkg:cargo/db-core@0.68.1",
       "name": "db-core",
-      "version": "0.62.1",
+      "version": "0.68.1",
       "scope": "required",
       "licenses": [
         {
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/db-core@0.62.1"
+      "purl": "pkg:cargo/db-core@0.68.1"
     },
     {
       "type": "library",
-      "bom-ref": "pkg:cargo/db-storage@0.5.8",
+      "bom-ref": "pkg:cargo/db-storage@0.5.9",
       "name": "db-storage",
-      "version": "0.5.8",
+      "version": "0.5.9",
       "scope": "required",
       "licenses": [],
-      "purl": "pkg:cargo/db-storage@0.5.8"
+      "purl": "pkg:cargo/db-storage@0.5.9"
     },
     {
       "type": "library",

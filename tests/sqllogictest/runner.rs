@@ -245,7 +245,7 @@ fn run_query(db_path: &Path, record: &QueryRecord) -> Outcome {
             rowid_alias: None,
         }
         .with_computed_rowid_alias();
-        let program = match sqlite_rs::codegen::shadow::try_compile(&record.sql, &[])
+        let program = match sqlite_rs::codegen::shadow::try_compile(&record.sql, &[], &[])
             .ok_or(CodegenError::NoFromClause)
             .or_else(|_| compile_select(&select, &no_from_schema))
         {
@@ -282,7 +282,7 @@ fn run_query(db_path: &Path, record: &QueryRecord) -> Outcome {
     let schema = &schema;
 
     // #19 measurement switch: db-core first when SQLITE_RS_CODEGEN=db-core.
-    let program = match sqlite_rs::codegen::shadow::try_compile(&record.sql, std::slice::from_ref(schema))
+    let program = match sqlite_rs::codegen::shadow::try_compile(&record.sql, std::slice::from_ref(schema), &[])
         .ok_or(CodegenError::NoFromClause)
         .or_else(|_| compile_select(&select, schema))
     {

@@ -736,7 +736,7 @@ fn matches_agg_slot(
         name,
         distinct,
         args,
-        over: None,
+        tail: None,
     } = &stripped.kind
     else {
         return Ok(false);

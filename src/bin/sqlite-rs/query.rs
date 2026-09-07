@@ -59,7 +59,7 @@ pub(crate) fn compile_select_program(
     // #19 measurement switch (off unless SQLITE_RS_CODEGEN=db-core); EXPLAIN
     // QUERY PLAN stays local — db-core has no EQP dispatch yet.
     if !eqp_mode {
-        if let Some(program) = sqlite_rs::codegen::shadow::try_compile(sql, schemas) {
+        if let Some(program) = sqlite_rs::codegen::shadow::try_compile(sql, schemas, views) {
             return Ok(SelectOutcome::Program(program));
         }
     }
