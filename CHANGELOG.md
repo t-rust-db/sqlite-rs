@@ -6,6 +6,10 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Changed
+
+- db-core pinned to v0.62.1 and db-storage to v0.5.8 (its matching re-pin). SBOMs regenerated.
+
 ### Removed
 
 - `tests/parity/` and `make test-parity` (#28): full oracle parity testing
