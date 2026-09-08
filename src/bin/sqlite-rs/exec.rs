@@ -80,6 +80,15 @@ pub fn run_exec(path: &Path, sql: &str) -> ExitCode {
             return ExitCode::FAILURE;
         };
 
+        // `exec` is the write path: a read statement belongs to `query`.
+        // This crate's own dispatch used to reject SELECT as unrecognized;
+        // db-core's (#19) compiles it, so the policy moves here.
+        if is_read_statement(&stmt) {
+            return fatal(
+                path,
+                &format!("exec does not run read statements; use `sqlite-rs query` for {stmt:?}"),
+            );
+        }
         let program = match compile_statement(&stmt, schemas, views) {
             Ok(p) => p,
             Err(e) => return fatal(path, &e),
@@ -102,6 +111,15 @@ pub fn run_exec(path: &Path, sql: &str) -> ExitCode {
 /// dirty flag for the catalog cache above. Deliberately conservative:
 /// any statement starting with `CREATE`/`DROP`/`ALTER` invalidates,
 /// even one that ends up failing or being a no-op.
+fn is_read_statement(stmt: &str) -> bool {
+    let head = stmt
+        .split_whitespace()
+        .next()
+        .map(str::to_ascii_uppercase)
+        .unwrap_or_default();
+    matches!(head.as_str(), "SELECT" | "WITH" | "EXPLAIN")
+}
+
 fn is_schema_changing(stmt: &str) -> bool {
     let head = stmt.trim_start();
     ["CREATE", "DROP", "ALTER"].iter().any(|kw| {

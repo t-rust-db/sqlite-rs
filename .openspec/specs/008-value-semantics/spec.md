@@ -144,7 +144,7 @@ declared `COLLATE` (parsed but previously unstored, #500) is carried on
 `TableSchema::column_collations` / `IndexedColumn::collation`
 (`db-storage:src/row/schema/ddl_reader.rs`) and consulted by every comparison site that
 doesn't spell out an explicit `COLLATE` in the query text — an explicit
-`COLLATE` always wins (`src/codegen/expr/value.rs::expr_collation`).
+`COLLATE` always wins (`db-core:src/codegen/row/expr/value.rs::expr_collation`).
 
 **Corpus:** `tests/corpus/expr_vectors/collation.jsonl`
 

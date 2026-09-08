@@ -247,13 +247,13 @@ dependencies = [
 
 [[package]]
 name = "db-core"
-version = "0.68.1"
-source = "git+https://github.com/t-rust-db/db-core?tag=v0.68.1#a90ceb5f4ebd7fd4f59da39f0964eaae8d51cd78"
+version = "0.70.1"
+source = "git+https://github.com/t-rust-db/db-core?tag=v0.70.1#db6898c5ca56f40a111778e65aea0051ab8c8f66"
 
 [[package]]
 name = "db-storage"
-version = "0.5.9"
-source = "git+https://github.com/t-rust-db/db-storage?tag=v0.5.9#58792081557a181acb7f48de82bcf10b1165de57"
+version = "0.6.1"
+source = "git+https://github.com/t-rust-db/db-storage?tag=v0.6.1#1e93a9eba99c1a9b9e04db973e592d3c3b2b2412"
 dependencies = [
  "db-core",
  "memmap2",
@@ -881,7 +881,7 @@ checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
 name = "sqlite-rs"
-version = "0.19.1"
+version = "0.20.0"
 dependencies = [
  "criterion",
  "db-cli",

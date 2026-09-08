@@ -7,8 +7,8 @@ date: 2026-08-28
 
 # 012 — WHERE-Clause Constraint Extraction
 
-The seek/probe fast paths in `src/codegen/select/limit_scan.rs` and
-`src/codegen/select/join_access.rs` (rowid seek, covering-index scan,
+The seek/probe fast paths in `db-core:src/codegen/row/select/limit_scan.rs` and
+`db-core:src/codegen/row/select/join_access.rs` (rowid seek, covering-index scan,
 skip-scan, join-access equality) each recognize only a single top-level
 `column = <literal|param>` equality in the `WHERE`/`ON` clause
 (`top_level_equality_operands`) — any `AND`/`OR` compound condition falls
@@ -55,7 +55,7 @@ equality) — without changing the WHERE clause's own semantics.
   only ever narrows what a fast path may additionally recognize; it never
   changes which rows the ordinary scan's `WHERE` evaluation returns).
 
-**Implementation:** `src/codegen/select/limit_scan.rs::propagate_constants`
+**Implementation:** `db-core:src/codegen/row/select/limit_scan.rs::propagate_constants`
 
 #### Scenario: Direct equality chain enables a rowid seek
 
@@ -73,7 +73,7 @@ equality) — without changing the WHERE clause's own semantics.
 - WHEN the WHERE clause is `a = b OR b = 5` (an `OR`, not an `AND`)
 - THEN no column resolves to a constant — the ordinary scan is used
 
-**Tests:** `src/codegen/select/limit_scan.rs::tests::propagate_constants_ignores_or`
+**Tests:** `db-core:src/codegen/row/select/limit_scan.rs::tests::propagate_constants_ignores_or`
 
 ### Requirement 2: OR-to-IN Conversion [MUST]
 
@@ -92,7 +92,7 @@ opcodes — no new opcode needed, since each value is still a point lookup.
   scope for this requirement; only the rowid-seek and covering-index-scan
   paths convert.
 
-**Implementation:** `src/codegen/select/limit_scan.rs::or_chain_equality_operands`
+**Implementation:** `db-core:src/codegen/row/select/limit_scan.rs::or_chain_equality_operands`
 
 #### Scenario: OR-chain of rowid equalities converts to repeated seeks
 
@@ -149,9 +149,9 @@ unchanged filter lowering rather than risk a silently wrong seek.
 - `EXPLAIN QUERY PLAN` MUST report `SEARCH ... USING INDEX` for all three
   shapes once the fast path is taken.
 
-**Implementation:** `src/codegen/select/range_scan.rs::try_compile_between_seek`,
-`src/codegen/select/range_scan.rs::try_compile_like_prefix_seek`,
-`src/codegen/select/range_scan.rs::try_compile_in_list_seek`
+**Implementation:** `db-core:src/codegen/row/select/range_scan.rs::try_compile_between_seek`,
+`db-core:src/codegen/row/select/range_scan.rs::try_compile_like_prefix_seek`,
+`db-core:src/codegen/row/select/range_scan.rs::try_compile_in_list_seek`
 
 #### Scenario: BETWEEN compiles to a bounded index range seek
 

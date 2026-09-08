@@ -159,19 +159,13 @@ impl SqliteHandler {
                     ));
                 }
             };
-            let program = match compile_select_program(
-                stmt,
-                &select,
-                false,
-                &schemas,
-                &views,
-                &stats_by_table,
-            ) {
-                Ok(SelectOutcome::Program(p)) => p,
-                // `eqp_mode` is always `false` above, so `Eqp` never comes back.
-                Ok(SelectOutcome::Eqp(_)) => return Err("unexpected EQP output".to_string()),
-                Err(e) => return Err(e.to_string()),
-            };
+            let program =
+                match compile_select_program(&select, false, &schemas, &views, &stats_by_table) {
+                    Ok(SelectOutcome::Program(p)) => p,
+                    // `eqp_mode` is always `false` above, so `Eqp` never comes back.
+                    Ok(SelectOutcome::Eqp(_)) => return Err("unexpected EQP output".to_string()),
+                    Err(e) => return Err(e.to_string()),
+                };
             // Reads through the same shared `Pager` the write path uses
             // (`Rc<RefCell<Pager>>` implements `PageSource`, ADR-0017) —
             // an uncommitted write earlier in this same transaction must

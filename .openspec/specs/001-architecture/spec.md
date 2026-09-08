@@ -80,7 +80,7 @@ Transforms SQL text into an analyzed AST ready for code generation.
 
 Name resolution and type checking (`resolve.c`) are not a separate frontend
 pass: column references resolve during codegen via `Scope` in
-`src/codegen/expr.rs`, against the schema catalog, so the parser produces a
+`db-core:src/codegen/row/expr.rs`, against the schema catalog, so the parser produces a
 syntactic AST rather than an analyzed one.
 
 **Implementation:** `db-core:src/parser/row/`
@@ -103,7 +103,7 @@ Compiles analyzed AST to VDBE bytecode.
 | `codegen::expr` | Expression → bytecode | `expr.c` |
 | `codegen::{subquery,transaction,pragma,analyze}` | Subqueries, BEGIN/COMMIT/ROLLBACK, PRAGMA, ANALYZE | `select.c`, `pragma.c`, `analyze.c` |
 
-**Implementation:** `src/codegen/`, `src/planner.rs`
+**Implementation:** `db-core:src/codegen/row/`, `src/planner.rs`
 
 **Estimated lines:** ~35,000
 
@@ -327,7 +327,7 @@ sqlite-rs MUST read and write files byte-compatible with SQLite 3.x.
 
 Each layer MUST communicate only through its defined interface. No layer SHALL reach into another layer's internals.
 
-**Implementation:** `db-storage:src/row/vfs/`, `db-storage:src/row/pager/`, `db-storage:src/row/btree/`, `db-core:src/vm/row/`, `src/codegen/`, `db-core:src/parser/row/`
+**Implementation:** `db-storage:src/row/vfs/`, `db-storage:src/row/pager/`, `db-storage:src/row/btree/`, `db-core:src/vm/row/`, `db-core:src/codegen/row/`, `db-core:src/parser/row/`
 
 #### Scenario: B-tree does not know SQL
 

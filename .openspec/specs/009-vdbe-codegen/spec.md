@@ -754,7 +754,7 @@ to produce NULL, not only 0/1.
 > ESCAPE` operand ordering) — see that test file's `KNOWN_GAPS` doc
 > comment.
 
-**Implementation:** `src/codegen/expr.rs`, `src/codegen/select.rs` (#91)
+**Implementation:** `db-core:src/codegen/row/expr.rs`, `db-core:src/codegen/row/select.rs` (#91)
 
 #### Scenario: WHERE compiles to a jump past the row-handling code, not a boolean register test
 
@@ -843,7 +843,7 @@ cursor machinery is introduced by this requirement.
 
 **Implementation:** `db-core:src/vm/row/vm.rs::agg_step`, `db-core:src/vm/row/vm.rs::agg_final`,
 `db-core:src/vm/row/aggregate.rs` (registry: `count`/`sum`/`avg`/`min`/`max`),
-`src/codegen/select/aggregate/accum.rs::emit_agg_step` (GROUP BY/plain-aggregate codegen, #263)
+`db-core:src/codegen/row/select/aggregate/accum.rs::emit_agg_step` (GROUP BY/plain-aggregate codegen, #263)
 
 #### Scenario: AggStep accumulates across repeated calls into the same context slot
 
@@ -907,8 +907,8 @@ reference an earlier one by name (non-recursively); an explicit
 columns positionally. `WITH RECURSIVE` stays out of scope (rejected by
 the parser, #375).
 
-**Implementation:** `src/codegen/subquery/cte.rs::expand_with_clause`,
-`src/codegen/subquery/from_clause.rs::materialize_from_subquery`
+**Implementation:** `db-core:src/codegen/row/subquery/cte.rs::expand_with_clause`,
+`db-core:src/codegen/row/subquery/from_clause.rs::materialize_from_subquery`
 
 #### Scenario: A CTE referenced in FROM materializes and scans like any table
 
@@ -987,8 +987,8 @@ SQLite's own rejection of this). Joins/subqueries within an arm, and
 `INTERSECT`/`EXCEPT` (unsupported at the parser level, #377), remain out
 of scope.
 
-**Implementation:** `src/codegen/select/entry.rs::compile_select_compound`,
-`src/codegen/select/projection.rs::emit_dedup_check`
+**Implementation:** `db-core:src/codegen/row/select/entry.rs::compile_select_compound`,
+`db-core:src/codegen/row/select/projection.rs::emit_dedup_check`
 
 #### Scenario: UNION ALL concatenates without deduplication
 
@@ -1066,9 +1066,9 @@ same-named view for the scope of its declaring `SELECT`, matching how a
 CTE already shadows a same-named real table. `DROP VIEW` is parsed
 (#379) but not yet compiled — out of scope here.
 
-**Implementation:** `src/codegen/ddl/create_view.rs::compile_create_view`,
+**Implementation:** `db-core:src/codegen/row/ddl/create_view.rs::compile_create_view`,
 `db-core:src/vm/row/cursor.rs::create_view`, `db-storage:src/row/schema/ddl_reader.rs::read_views`,
-`src/codegen/subquery/views.rs::{expand_views, resolve_views}`
+`db-core:src/codegen/row/subquery/views.rs::{expand_views, resolve_views}`
 
 #### Scenario: CREATE VIEW registers a sqlite_master row with rootpage 0
 
@@ -1179,9 +1179,9 @@ two genuinely new fast paths.
 
 **Implementation:**
 `db-core:src/vm/row/cursor.rs::read_row_column` (index-cursor case),
-`src/codegen/select/limit_scan.rs::{find_covering_index, try_compile_covering_index_scan}`,
-`src/codegen/select/aggregate.rs::try_compile_index_only_count`,
-`src/codegen/select/eqp.rs::explain_query_plan`
+`db-core:src/codegen/row/select/limit_scan.rs::{find_covering_index, try_compile_covering_index_scan}`,
+`db-core:src/codegen/row/select/aggregate.rs::try_compile_index_only_count`,
+`db-core:src/codegen/row/select/eqp.rs::explain_query_plan`
 
 #### Scenario: A covering-index equality SELECT skips the table row entirely
 
@@ -1206,7 +1206,7 @@ two genuinely new fast paths.
 ### Requirement 17: Hash-Based GROUP BY Aggregation [SHOULD]
 
 `GROUP BY` MUST have a hash-based execution strategy alongside
-Requirement 9's sort-based one (`src/codegen/select/aggregate.rs::compile_grouped_scan`),
+Requirement 9's sort-based one (`db-core:src/codegen/row/select/aggregate.rs::compile_grouped_scan`),
 selected when no covering index already produces group-ordered rows.
 The sort strategy pays O(n log n) to make a group's rows adjacent before
 folding them; the hash strategy folds each row into its group's
@@ -1256,7 +1256,7 @@ why group identity is a canonical key encoding rather than a `Hash`
 instance on `Value`.
 
 **Implementation:** `db-core:src/vm/row/cursor.rs`,
-`src/codegen/select/aggregate/hash.rs::try_compile_hash_grouped_scan`
+`db-core:src/codegen/row/select/aggregate/hash.rs::try_compile_hash_grouped_scan`
 
 #### Scenario: A plain GROUP BY compiles the sorter strategy, not the hash strategy
 
@@ -1383,7 +1383,7 @@ active by #89 (VDBE core: instruction format, register file, control/
 arithmetic/compare/result opcodes) and #90 (cursor, ephemeral-index, and
 sorter opcode families). Requirements 7 (`Function` opcode dispatch), 10
 (`EXPLAIN`), and 11 (expression emission) are now active too: #91 wired
-the real SQL-to-`Program` pipeline (`src/codegen/`), the `Function`
+the real SQL-to-`Program` pipeline (`db-core:src/codegen/row/`), the `Function`
 opcode's dispatch (`db-core:src/vm/row/vm.rs`), and the `EXPLAIN` printer
 (`db-core:src/vm/row/explain.rs`). Requirement 12 (`AggStep`/`AggFinal`) is now
 active too: #241 added the two opcodes plus a minimal `count`/`sum`
