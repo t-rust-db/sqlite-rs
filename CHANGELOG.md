@@ -16,8 +16,8 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
   required literal trigrams; `index`, `cache-path`, `--rebuild`, `-i`.
   New optional deps `regex`, `regex-syntax`, `dirs` behind the default-on
   `sqlgrep` feature (`cargo vet` exemptions, SBOMs regenerated). Found a
-  db-storage v0.6.2 leaf split-by-count defect, pinned by an `#[ignore]`d
-  regression test.
+  db-storage v0.6.2 leaf split-by-count defect (t-rust-db/db-storage#31);
+  db-storage pinned to v0.6.3, which fixes it, with a regression test here.
 
 ### Removed
 

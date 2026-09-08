@@ -275,16 +275,16 @@ fn one_cache_file_per_canonical_root() {
     assert!(path_for("a").starts_with(s.cache_dir.to_str().unwrap()));
 }
 
-/// Regression pin for a db-storage v0.6.2 bug found while indexing (#34):
-/// `insert_into_leaf` splits a full leaf by cell *count*, so a leaf holding
+/// Regression pin for a db-storage v0.6.2 bug found while indexing (#34,
+/// t-rust-db/db-storage#31): `insert_into_leaf` split a full leaf by cell
+/// *count*, so a leaf holding
 /// many ~90-byte posting lists next to ~400-byte ones can hand the right
 /// half more bytes than a page holds; `write_leaf_page` then wraps instead
 /// of erroring and the next descent fails with "unexpected b-tree page
 /// type". A vocabulary shared by all 400 files (long posting lists) mixed
-/// with per-file tokens (short ones) is exactly that shape. Un-ignore when
-/// the db-storage pin carries the split-by-bytes fix.
+/// with per-file tokens (short ones) is exactly that shape. Fixed in
+/// db-storage v0.6.3 (t-rust-db/db-storage#31); this stays as the pin.
 #[test]
-#[ignore = "blocked on db-storage leaf split-by-count bug (t-rust-db/db-storage, found by #34)"]
 fn mixed_size_posting_lists_split_correctly() {
     let s = scratch("mixed");
     for i in 0..400u32 {

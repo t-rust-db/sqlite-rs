@@ -100,12 +100,13 @@ location needs the XDG lookup.
 - Posting lists grow monotonically between `--rebuild`s; a heavily churned
   tree pays for tombstones at query time. A `stale` counter in `meta` plus
   automatic compaction is the natural follow-up.
-- Indexing surfaced a db-storage v0.6.2 defect: `insert_into_leaf` splits a
-  full leaf by cell *count*, so mixed cell sizes can hand the right half
-  more bytes than a page holds and `write_leaf_page` wraps silently.
+- Indexing surfaced a db-storage v0.6.2 defect (t-rust-db/db-storage#31):
+  `insert_into_leaf` split a full leaf by cell *count*, so mixed cell sizes
+  handed the right half more bytes than a page holds and `write_leaf_page`
+  wrapped silently. Fixed in v0.6.3 (byte-balanced split, up to three ways;
+  overfull writes refused), which this crate pins from the start;
   `tests/unit/sqlgrep_cli_test.rs::mixed_size_posting_lists_split_correctly`
-  pins it (`#[ignore]`d until the pin carries the fix); a shared vocabulary
-  across hundreds of files trips it today.
+  stays as the regression pin.
 - Slice 1 (#34) ships `index`, search, `cache-path`, `--rebuild`, `-i`.
   Not yet: case-insensitive narrowing, auto-compaction, chunked commits for
   very large first builds, a shared `trigrams()` helper in db-core.

@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-08T19:47:06.000000000Z",
+    "timestamp": "2026-09-08T20:16:55.000000000Z",
     "tools": [
       {
         "vendor": "sqlite-rs",
@@ -26,7 +26,7 @@
     "properties": [
       {
         "name": "sqlite-rs:generated-at-commit",
-        "value": "39a59531de0a8dc75f7fdfaf1a6b560f12820e17"
+        "value": "48598926a02cdfeddd6ff98c4e788ad22738fb2c"
       }
     ]
   },
@@ -163,12 +163,12 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:cargo/db-storage@0.6.2",
+      "bom-ref": "pkg:cargo/db-storage@0.6.3",
       "name": "db-storage",
-      "version": "0.6.2",
+      "version": "0.6.3",
       "scope": "required",
       "licenses": [],
-      "purl": "pkg:cargo/db-storage@0.6.2"
+      "purl": "pkg:cargo/db-storage@0.6.3"
     },
     {
       "type": "library",

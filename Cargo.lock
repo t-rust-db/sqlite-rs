@@ -79,8 +79,8 @@ source = "git+https://github.com/t-rust-db/db-core?tag=v0.71.1#f45e8a2839f9cfbda
 
 [[package]]
 name = "db-storage"
-version = "0.6.2"
-source = "git+https://github.com/t-rust-db/db-storage?tag=v0.6.2#2c4040d975612bbe295262a5514ba947f40af5fd"
+version = "0.6.3"
+source = "git+https://github.com/t-rust-db/db-storage?tag=v0.6.3#d09fab23700d84eb16a379198f3258e28f32efa4"
 dependencies = [
  "db-core",
  "memmap2",
