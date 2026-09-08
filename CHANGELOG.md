@@ -8,6 +8,13 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ### Removed
 
+- **JFrog/Artifactory private-registry artifacts** (ADR-0042, supersedes
+  ADR-0038): the `JFrog` workflow, `.cargo/config.toml.example`,
+  `docs/jfrog-registry.md`; Dependabot's JFrog CLI bump (#10) closed. Consumers
+  depend on this crate by git tag (ADR-0040).
+
+### Removed
+
 - **Performance benchmarks moved to t-rust-db/benchmark `perf/sqlite-rs`**
   (#22): `tests/performance/*` (engine, crud, v6, skip_scan, compile_path,
   point_lookup), `tools/bench_env.sh`, `tools/bench_cli.sh`,
