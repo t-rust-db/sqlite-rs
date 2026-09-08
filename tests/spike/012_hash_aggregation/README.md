@@ -36,6 +36,7 @@ built-in macOS `sample` tool against the running bench process (no elevated
 privileges required, same sampling-profiler technique):
 
 ```bash
+cd ../../../../benchmark/perf/sqlite-rs   # the bench lives there since #22
 source tools/bench_env.sh
 ./target/release/deps/engine-<hash> --bench "group_by_agg/bench_50mb.db/ours" --profile-time 15 &
 sample <pid> 8 -f profile-group_by_agg-50mb.txt

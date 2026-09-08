@@ -203,46 +203,12 @@ path = "tests/proptest/btree_proptest.rs"
 # builds (t-rust-db/db-storage#13).
 db-storage = { version = "0.6.2", git = "https://github.com/t-rust-db/db-storage", tag = "v0.6.2", default-features = false, features = ["row", "test-support"] }
 proptest = "1"
-criterion = "0.8"
-
-# Deliberately no `bundled` feature: the point of tier-1 benching is
-# comparing against the *pinned* oracle (same one gen_fixtures.sh and the
-# corpus harness use), not whatever SQLite version rusqlite happens to
-# vendor. `tools/bench_env.sh` points the build at the pinned Homebrew keg
-# via SQLITE3_LIB_DIR/SQLITE3_INCLUDE_DIR; `benches/engine.rs` asserts the
-# linked version matches at run time so a drift can't pass silently.
-rusqlite = "0.32"
 
 # MD5 is part of the sqllogictest format itself (`"N values hashing to
 # <md5>"` result blocks, #96) — not a project cryptographic dependency, so
 # pulling in a maintained implementation beats hand-rolling a bit-exact
 # digest for a test-only concern.
 md-5 = "0.10"
-
-[[bench]]
-name = "engine"
-path = "tests/performance/engine.rs"
-harness = false
-
-[[bench]]
-name = "crud"
-path = "tests/performance/crud.rs"
-harness = false
-
-[[bench]]
-name = "v6"
-path = "tests/performance/v6.rs"
-harness = false
-
-[[bench]]
-name = "skip_scan"
-path = "tests/performance/skip_scan.rs"
-harness = false
-
-[[bench]]
-name = "compile_path"
-path = "tests/performance/compile_path.rs"
-harness = false
 
 # Single source of truth for the pinned sqlite3 version — the oracle binary,
 # the parse.y the grammar is re-derived from, and the TCL suite the SQL corpus
@@ -261,10 +227,6 @@ harness = false
 [package.metadata.oracle]
 version = "3.53.4"
 
-[profile.bench]
-lto = "thin"
-codegen-units = 1
-debug = true
 
 [lints.rust]
 # Backstop for ADR-0031: `src/lib.rs` and `src/bin/sqlite-rs/main.rs` each
@@ -307,15 +269,6 @@ test = false
 [[test]]
 name = "sqllogictest"
 path = "tests/sqllogictest/main.rs"
-test = false
-
-# Shells out to the pinned oracle to build multi-thousand-row fixtures
-# and takes several seconds — same rationale as "corpus"/"parity" above,
-# stays behind `make test-point-lookup-perf` rather than the default
-# `cargo test` run.
-[[test]]
-name = "point_lookup_perf"
-path = "tests/performance/point_lookup.rs"
 test = false
 
 [[test]]

@@ -49,8 +49,10 @@ PINNED_LITERALS = [
         re.compile(r'echo "(\d+\.\d+\.\d+) '),
         "fake codec oracle version string",
     ),
+    # The tier-1 bench moved to t-rust-db/benchmark (#22); same sibling
+    # checkout rule as the db-core site below.
     (
-        "tests/performance/engine.rs",
+        "benchmark:perf/sqlite-rs/benches/engine.rs",
         re.compile(r'pub const ORACLE_VERSION: &str = "([^"]+)"'),
         "tier-1 bench ORACLE_VERSION const",
     ),
@@ -83,7 +85,6 @@ RUNTIME_READERS = [
     "tools/grammar_drift.py",
     "tools/extract_sql_corpus.py",
     "tools/gen_fixtures.sh",
-    "tools/bench_env.sh",
 ]
 VERSION_LITERAL_RE = re.compile(r'"3\.\d+\.\d+"')
 

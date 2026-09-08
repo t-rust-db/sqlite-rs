@@ -6,6 +6,19 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Removed
+
+- **Performance benchmarks moved to t-rust-db/benchmark `perf/sqlite-rs`**
+  (#22): `tests/performance/*` (engine, crud, v6, skip_scan, compile_path,
+  point_lookup), `tools/bench_env.sh`, `tools/bench_cli.sh`,
+  `tools/bench_status.py`, `tools/bench-status.json`, the `bench*` Makefile
+  targets, the `[[bench]]` blocks and `[profile.bench]`, and the `criterion`
+  and `rusqlite` dev-dependencies (nothing else used them). `tools/gen_fixtures.sh
+  --bench` stays as the shared fixture generator; `tools/version_pin.py` now
+  checks the bench's `ORACLE_VERSION` in the sibling benchmark checkout.
+  `docs/performance.md` and `.openspec/performance.md` are pointers. SBOMs
+  regenerated; `cargo vet` exemptions for the criterion/rusqlite closure pruned.
+
 ## [0.20.1] - 2026-09-08
 
 ### Changed

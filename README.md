@@ -91,19 +91,11 @@ See [.openspec/plan.md](.openspec/plan.md) for the full breakdown and [.openspec
 
 ### Performance
 
-5 of 7 benchmark queries beat or match the sqlite3 oracle (v3.53.4):
-
-| Query | Ratio | Status |
-|-------|------:|--------|
-| point_lookup | 0.10× | 10× faster than C |
-| filter_scan | 0.73× | beats oracle |
-| full_scan | 0.83× | beats oracle |
-| order_by_limit | 0.98× | parity |
-| join | 1.86× | within 2× |
-| group_by_agg | 5.1× | within 5× |
-| correlated_subquery | 1.91× | within 2× |
-
-See [docs/performance.md](docs/src/performance.md) for the full progression.
+5 of 7 tier-1 benchmark queries beat or match the sqlite3 oracle (v3.53.4);
+`point_lookup` runs 10× faster than C. The benchmarks, their results and the
+V4→V7.3 progression live in
+[t-rust-db/benchmark `perf/sqlite-rs`](https://github.com/t-rust-db/benchmark/tree/main/perf/sqlite-rs)
+(#22), alongside the oracle parity suite.
 
 ## Syncing from Lab271
 
