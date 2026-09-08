@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: clean bench-compile-path help test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures fixtures-bench bench bench-cli bench-status bench-point-lookup extract-sql-corpus test-corpus test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
+.PHONY: clean help test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures extract-sql-corpus test-corpus test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
 
 # Qualified-subset gate (issue #23). Boundary policy:
 #   - Tier 0 core (vfs, pager, header, record, btree, schema) now lives in
@@ -145,15 +145,12 @@ loc: ## Print lines-of-code stats for src/ vs tests/, separately (requires tokei
 	@tokei tests
 
 lint: ## Run clippy and check formatting
-	# Deliberately `--lib --bins --tests --examples`, not `--all-targets`:
-	# benches (tests/performance/engine.rs, #111/#112) need rusqlite linked
-	# against the pinned oracle via `tools/bench_env.sh`, not whatever
-	# sqlite3-dev a CI runner happens to ship — performance testing is a
-	# manual `make bench`/`make bench-cli` workflow, not part of the
-	# regular CI gate, so it deliberately isn't wired up here.
+	# `--lib --bins --tests --examples` rather than `--all-targets` — kept
+	# explicit; the benches that once needed rusqlite linked against the
+	# pinned oracle live in t-rust-db/benchmark `perf/sqlite-rs` now (#22).
 	cargo clippy --locked --lib --bins --tests --examples -- -D warnings
-	# `[[test]] test = false` targets (corpus/sqllogictest/
-	# point_lookup_perf) opt out of the default `cargo test` run (see
+	# `[[test]] test = false` targets (corpus/sqllogictest) opt out of the
+	# default `cargo test` run (see
 	# their Cargo.toml comments) but `--tests` above doesn't build or
 	# lint them either — they went uncompiled and unlinted for a while
 	# as a result (#299: a stale `FromClause` field reference in
@@ -161,7 +158,7 @@ lint: ## Run clippy and check formatting
 	# every gate above until `cargo clippy --test sqllogictest` was run
 	# directly). Named explicitly rather than discovered, matching how
 	# `--tests` itself isn't a wildcard either.
-	cargo clippy --locked --test corpus --test sqllogictest --test point_lookup_perf -- -D warnings
+	cargo clippy --locked --test corpus --test sqllogictest -- -D warnings
 	cargo fmt -- --check
 
 hooks-install: ## Install git hooks (tools/hooks/) into the shared hooks dir — covers every worktree at once
@@ -281,7 +278,7 @@ silent-swallow: ## Robustness audit: count error-discarding patterns in src/ (#3
 	@echo ".unwrap_or(...)     (fallible call papered over with a default)"
 	@grep -rn "\.unwrap_or" src/ $(if $(VERBOSE),,| wc -l | sed 's/^/  /') || true
 
-clean: ## Remove everything generated or compiled: target/ (incl. bench fixtures, coverage, gate caches), spike/fuzz targets, vendor/, docs/book, mutants.out*, __pycache__, stray *.db-shm, Cargo.lock.before-update
+clean: ## Remove everything generated or compiled: target/ (incl. coverage, gate caches), spike/fuzz targets, vendor/, docs/book, mutants.out*, __pycache__, stray *.db-shm, Cargo.lock.before-update
 	cargo clean
 	@for d in tests/spike/*/ tests/fuzz; do [ -f "$$d/Cargo.toml" ] && (cd "$$d" && cargo clean 2>/dev/null) || true; done
 	rm -rf vendor docs/book Cargo.lock.before-update
@@ -337,31 +334,11 @@ opcodes: ## Harvest V2 (single-table SELECT) opcodes via pinned oracle EXPLAIN, 
 extract-sql-corpus: ## Regenerate tests/corpus/sql/{select,insert,update,delete,ddl}/ from the vendored sqllogictest + TCL subsets (#70; offline. Add FETCH=1 to refresh the vendored subsets from upstream)
 	python3 tools/extract_sql_corpus.py $(if $(FETCH),--fetch,)
 
-# === Bench (#111/#112 — three-tier perf regime) ===
-
-fixtures-bench: ## Regenerate the ~1MB/~50MB bench fixtures (target/bench-fixtures/, not committed) from tools/gen_fixtures.sh --bench
-	./tools/gen_fixtures.sh --bench
-
-bench: fixtures-bench ## Tier 1 (engine-to-engine): criterion bench, sqlite-rs vs rusqlite linked to the pinned oracle (tests/performance/engine.rs)
-	@bash -c '. ./tools/bench_env.sh && cargo bench --bench engine'
-
-bench-v6: fixtures-bench ## V6 (epic #354, #391): WAL journal-vs-WAL/concurrent-read-write/checkpoint + CTE-reuse benches (tests/performance/v6.rs)
-	@bash -c '. ./tools/bench_env.sh && cargo bench --bench v6'
-
-bench-skip-scan: ## #485: skip-scan vs full-scan at a low-cardinality leading index column (tests/performance/skip_scan.rs, own fixture)
-	@bash -c '. ./tools/bench_env.sh && cargo bench --bench skip_scan'
-
-bench-compile-path: ## #590: Tier 2 compile path (tokenize/parse/expand/codegen), sqlite-rs vs itself across revisions (tests/performance/compile_path.rs, no fixture or oracle needed)
-	cargo bench --bench compile_path
-
-bench-cli: fixtures-bench ## Tier 2 (CLI-to-CLI): hyperfine, sqlite-rs dump/query vs sqlite3 (tools/bench_cli.sh)
-	./tools/bench_cli.sh
-
-bench-status: ## Assemble tools/bench-status.json from the latest `make bench`/`make bench-cli` raw output
-	python3 tools/bench_status.py
-
-bench-point-lookup: ## Quick wall-clock demos: rowid seek vs scan (#137), and indexed vs unindexed JOIN lookup (V4)
-	cargo test --locked --test point_lookup_perf -- --nocapture
+# === Bench ===
+# Performance benchmarks live in t-rust-db/benchmark `perf/sqlite-rs`
+# (#22): `make -C ../benchmark/perf/sqlite-rs bench|bench-cli|status`. Only
+# the fixture generator stays here (`tools/gen_fixtures.sh --bench`, shared
+# with the corpus harness); the benchmark package calls it via SQLITE_RS_REPO.
 
 # === Assurance ===
 

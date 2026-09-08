@@ -94,14 +94,14 @@ a trivial budget.
   (`tests/proptest/record_proptest.rs::prop_integer_i8_roundtrip`); update
   them in the same PR as any future move so `tools/assurance.py` doesn't
   report DEAD LINKs.
-- **Performance benches live under `tests/performance/`.** Same
-  Cargo-discovery caveat as `tests/proptest/`, but for `[[bench]]` instead
-  of `[[test]]`: `tests/performance/engine.rs` (tier 1, #111/#112) is
-  declared with an explicit `path =` in `Cargo.toml` rather than living in
-  the Cargo-default `benches/` directory, so it's discoverable alongside
-  the rest of the test suite instead of siloed in a separate top-level
-  folder. Run via `make bench` (sources `tools/bench_env.sh` first) or
-  `cargo bench --bench engine`.
+- **Performance benches live in t-rust-db/benchmark `perf/sqlite-rs`**
+  (#22), next to the oracle parity suite (`parity/sqlite-rs`, ADR-0041):
+  criterion tier-1 (`benches/engine.rs`, vs libsqlite3 via rusqlite),
+  tier-2 CLI (hyperfine vs sqlite3), `results/bench-status.json`. Run with
+  `make -C ../benchmark/perf/sqlite-rs bench`. This crate keeps only the
+  shared fixture generator (`tools/gen_fixtures.sh --bench`); no
+  `[[bench]]`, `criterion` or `rusqlite` remain here. `tools/version_pin.py`
+  checks the bench's `ORACLE_VERSION` through the sibling checkout.
 
 ## Epic & phase breakdown conventions
 
