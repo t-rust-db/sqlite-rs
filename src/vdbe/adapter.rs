@@ -107,28 +107,25 @@ impl Cursor for TableCursorAdapter {
         self.position(r)
     }
 
-    fn column(&self, col: usize) -> Value {
+    fn column(&self, col: usize) -> Option<Value> {
         // `column` takes `&self`; the dispatcher always positions first,
         // and `payload()`/`ensure_cached` is called through `&mut self`
         // paths, so fall back to a direct read when nothing is cached.
+        // `None` is "no current row" (db-core#231); a column index past the
+        // record's end is `Some(Null)`, SQLite's short-record rule.
         match &self.cached {
-            Some((_, values)) => values.get(col).cloned().unwrap_or(Value::Null),
+            Some((_, values)) => Some(values.get(col).cloned().unwrap_or(Value::Null)),
             None => {
-                if self.current_rowid.is_none() {
-                    return Value::Null;
-                }
-                self.cursor
-                    .current_payload()
-                    .ok()
-                    .and_then(|p| decode_record(&p, self.header.text_encoding).ok())
-                    .and_then(|values| values.get(col).cloned())
-                    .unwrap_or(Value::Null)
+                self.current_rowid?;
+                let payload = self.cursor.current_payload().ok()?;
+                let values = decode_record(&payload, self.header.text_encoding).ok()?;
+                Some(values.get(col).cloned().unwrap_or(Value::Null))
             }
         }
     }
 
-    fn rowid(&self) -> i64 {
-        self.current_rowid.unwrap_or(0)
+    fn rowid(&self) -> Option<i64> {
+        self.current_rowid
     }
 
     fn payload(&self) -> Option<Rc<[u8]>> {
@@ -264,15 +261,13 @@ impl Cursor for IndexCursorAdapter {
         self.set_current(r)
     }
 
-    fn column(&self, col: usize) -> Value {
-        self.current
-            .as_ref()
-            .and_then(|(_, values)| values.get(col).cloned())
-            .unwrap_or(Value::Null)
+    fn column(&self, col: usize) -> Option<Value> {
+        let (_, values) = self.current.as_ref()?;
+        Some(values.get(col).cloned().unwrap_or(Value::Null))
     }
 
-    fn rowid(&self) -> i64 {
-        self.idx_rowid().unwrap_or(0)
+    fn rowid(&self) -> Option<i64> {
+        self.idx_rowid()
     }
 
     fn idx_rowid(&self) -> Option<i64> {
