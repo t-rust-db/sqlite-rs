@@ -131,7 +131,7 @@ A column declared exactly `INTEGER PRIMARY KEY` is not stored in the record (SQL
 
 **Tests:** `src/dump.rs::tests::rowid_alias_detects_plain_integer_primary_key`, `tests/corpus/no_stats_optimizations_test.rs::covering_index_select_star_with_rowid_alias_matches_oracle`, `tests/corpus/no_stats_optimizations_test.rs::covering_index_select_star_with_rowid_alias_non_unique_duplicates_matches_oracle`
 
-Substitution landed via #34 (DDL reader)'s `rowid_alias_from_sql`/`TableSchema::rowid_alias`, now wired through `src/codegen/select/projection.rs`, `src/codegen/stmt/insert.rs`, and `src/codegen/stmt/update.rs` — this requirement's original "(planned)" note was stale; the two scenarios above are both discharged.
+Substitution landed via #34 (DDL reader)'s `rowid_alias_from_sql`/`TableSchema::rowid_alias`, now wired through `db-core:src/codegen/row/select/projection.rs`, `db-core:src/codegen/row/stmt/insert.rs`, and `db-core:src/codegen/row/stmt/update.rs` — this requirement's original "(planned)" note was stale; the two scenarios above are both discharged.
 
 ### Requirement 5: Index B-Tree Page Format [MUST]
 
@@ -461,7 +461,7 @@ Because index interior cells carry a full entry (Requirement 5), deleting a key 
 
 The system MUST be able to walk every table and index b-tree plus the freelist trunk chain and report structural problems in the same textual shape stock `sqlite3` uses: a single `"ok"` row when nothing is wrong, otherwise one row per problem found. `PRAGMA quick_check` MUST skip the exhaustive index-vs-table cross-check pass that `PRAGMA integrity_check` performs (every index entry's trailing rowid exists in its table, and per-index entry counts match table row counts) — both share the same tree-walking core. An auto-vacuum database (`largest_root_btree_page != 0`) MUST report a single informational problem rather than a silent false negative: this crate has no auto-vacuum/incremental-vacuum write path and therefore never writes a pointer-map, so pointer-map cross-validation is out of scope until auto-vacuum support lands, not silently skipped.
 
-**Implementation:** `db-storage:src/row/integrity.rs::run_integrity_check`, `db-core:src/vm/row/vm.rs::integrity_check`, `src/codegen/pragma.rs::compile_pragma`, `db-core:src/parser/ast.rs::Pragma::IntegrityCheck`
+**Implementation:** `db-storage:src/row/integrity.rs::run_integrity_check`, `db-core:src/vm/row/vm.rs::integrity_check`, `db-core:src/codegen/row/pragma.rs::compile_pragma`, `db-core:src/parser/ast.rs::Pragma::IntegrityCheck`
 
 #### Scenario: A well-formed database with tables and indexes passes both pragmas
 
@@ -485,4 +485,4 @@ The system MUST be able to walk every table and index b-tree plus the freelist t
 - WHEN each compiles
 - THEN `quick_check` MUST compile `Opcode::IntegrityCheck` with `P1 = 1` and `integrity_check` with `P1 = 0`, the flag `run_integrity_check` uses to skip the index cross-check pass
 
-**Tests:** `src/codegen/pragma.rs::tests::integrity_check_compiles_p1_zero`, `src/codegen/pragma.rs::tests::quick_check_compiles_p1_one`
+**Tests:** `db-core:src/codegen/row/pragma.rs::tests::integrity_check_compiles_p1_zero`, `db-core:src/codegen/row/pragma.rs::tests::quick_check_compiles_p1_one`

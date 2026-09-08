@@ -6,6 +6,43 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-09-08
+
+### Changed
+
+- **`src/codegen` and `src/planner` are facades over `db_core::codegen::row`**
+  (#19; db-core#219 / ADR 0013 moved this crate's codegen and the pure half of
+  its planner into db-core verbatim). The 21k-line local tree is deleted; every
+  `crate::codegen::*` / `sqlite_rs::codegen::*` path and `planner::{Stats,
+  PlanCost, estimate_*, is_*_worthwhile}` keep resolving. Only
+  `planner::load_stats` (reads `sqlite_stat1` through this crate's storage
+  stack) stays local. sqlite-rs is now a CLI plus a storage adapter over
+  db-storage and db-core: parser, VDBE, codegen, planner, VFS, pager, b-tree,
+  record, schema, format and integrity are all re-exports.
+- **One schema type** (db-core ADR 0014): `crate::schema::TableSchema` is
+  `db_core::schema::TableSchema`, re-exported through db-storage 0.6.x the way
+  `Value` is, so the planner consumes what the DDL reader returns with no
+  conversion. Pins: db-core v0.70.1, db-storage v0.6.1.
+- `exec` refuses `SELECT`/`WITH`/`EXPLAIN` explicitly (use `query`); this
+  crate's old dispatch rejected them as unrecognized, db-core's compiles them.
+- Spec `Implementation:`/`Tests:` links into `src/codegen/**` and the moved
+  planner items are `db-core:src/codegen/row/...` cross-repo links (48 links;
+  dashboard unchanged at 86/86 · 276/276 · 0 dead).
+
+### Removed
+
+- The `SQLITE_RS_CODEGEN=db-core` shadow switch (`codegen::shadow`) and its
+  hooks — there is one codegen now.
+- The in-module codegen unit tests moved with the code (default suite 738 →
+  573; corpus 380/380, sqllogictest 3,133/3,133 and tiers unchanged).
+
+### Fixed (upstream, surfaced by this repoint)
+
+- db-core 0.70.1: `INTEGER PRIMARY KEY DESC` is not a rowid alias; a string
+  literal is accepted where an identifier is required (`CREATE TABLE
+  't_data'(...)`, FTS5 shadow tables). Both were rules of db-storage's retired
+  hand-rolled detector that the dump/export corpus tests caught.
+
 ## [0.19.1] - 2026-09-07
 
 ### Changed

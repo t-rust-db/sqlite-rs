@@ -153,6 +153,9 @@ VERSION_MAP = {
     # t-rust-db migration epic (#1): phases 1–3 (db-cli, db-storage, db-core
     # vm) shipped as 0.19.0; phase 4 (#19 codegen repoint, #20, #21) next.
     19: ("t-rust-db migration", 3, "#1"),
+    # 0.20.0: phase 4 step 1 — codegen + planner repointed at
+    # db_core::codegen::row (#19); #20/#21 remain.
+    20: ("t-rust-db migration", 4, "#1"),
 }
 
 

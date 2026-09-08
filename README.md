@@ -75,7 +75,7 @@ See [.openspec/plan.md](.openspec/plan.md) for the full breakdown and [.openspec
 
 ## Status
 
-**Version 0.19.1** — see [CHANGELOG.md](CHANGELOG.md). One minor version per completed plan phase.
+**Version 0.20.0** — see [CHANGELOG.md](CHANGELOG.md). One minor version per completed plan phase.
 
 | Phase | Version | Status |
 |-------|---------|--------|
@@ -87,6 +87,7 @@ See [.openspec/plan.md](.openspec/plan.md) for the full breakdown and [.openspec
 | V6 — WAL & CTEs | 0.16.0–0.17.0 | ✅ Complete |
 | V7 — Polish & compatibility | 0.18.x | ✅ Complete |
 | Migration to t-rust-db (epic #1, phases 1–3) | 0.19.0 | ✅ Complete |
+| Migration to t-rust-db (epic #1, phase 4: codegen repoint #19) | 0.20.0 | ✅ Complete |
 
 ### Performance
 

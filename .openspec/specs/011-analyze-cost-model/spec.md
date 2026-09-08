@@ -11,7 +11,7 @@ The `ANALYZE` statement collects table/index statistics into `sqlite_stat1`,
 and a cost model consumes those statistics to estimate the cost of a scan or
 index probe. Together these let the query planner make cost-informed
 decisions instead of the purely structural pattern-matching it uses today
-(`src/codegen/select/join_access.rs::choose_join_access`).
+(`db-core:src/codegen/row/select/join_access.rs::choose_join_access`).
 
 Assigned to **V7** (`.openspec/plan.md:267`). Enables #470 (join ordering
 heuristics) and skip-scan optimization — none of which are in scope here.
@@ -47,7 +47,7 @@ dispatched to a dedicated codegen path.
   journal_mode` precedent (`db-core:src/parser/row/grammar.rs:952`).
 
 **Implementation:** `db-core:src/parser/row/grammar.rs::parse_analyze_stmt`,
-`db-core:src/parser/ast.rs::Analyze`, `src/codegen/analyze.rs::compile_analyze`
+`db-core:src/parser/ast.rs::Analyze`, `db-core:src/codegen/row/analyze.rs::compile_analyze`
 
 #### Scenario: Bare ANALYZE populates stats for every table
 
@@ -91,7 +91,7 @@ SQLite's `sqlite_stat1` shape (`sqlite3 src/analyze.c`).
   rows (`DELETE FROM sqlite_stat1 WHERE tbl = ?` semantics before
   re-inserting).
 
-**Implementation:** `src/codegen/analyze.rs::compile_analyze`
+**Implementation:** `db-core:src/codegen/row/analyze.rs::compile_analyze`
 
 #### Scenario: Re-running ANALYZE replaces stale stats
 
@@ -128,8 +128,8 @@ without) rather than panicking or dividing by zero — this is what keeps
 Requirement 16's stats-free fast paths behaviorally unaffected by this
 spec.
 
-**Implementation:** `src/planner.rs::Stats`, `src/planner.rs::PlanCost`,
-`src/planner.rs::estimate_scan_cost`, `src/planner.rs::estimate_index_cost`
+**Implementation:** `db-core:src/codegen/row/planner.rs::Stats`, `db-core:src/codegen/row/planner.rs::PlanCost`,
+`db-core:src/codegen/row/planner.rs::estimate_scan_cost`, `db-core:src/codegen/row/planner.rs::estimate_index_cost`
 
 #### Scenario: Missing stats fall back to a conservative default
 
@@ -138,7 +138,7 @@ spec.
 - THEN it returns a `PlanCost` with `estimated_rows = u64::MAX`, not a
   panic or a division by zero
 
-**Tests:** `src/planner.rs::missing_stats_fall_back_to_max_cost`
+**Tests:** `db-core:src/codegen/row/planner.rs::missing_stats_fall_back_to_max_cost`
 
 #### Scenario: An indexed equality is cheaper than a scan once stats exist
 
@@ -149,11 +149,11 @@ spec.
 - THEN `estimate_index_cost` reports fewer `estimated_rows` than
   `estimate_scan_cost`
 
-**Tests:** `src/planner.rs::indexed_equality_cheaper_than_scan_with_stats`
+**Tests:** `db-core:src/codegen/row/planner.rs::indexed_equality_cheaper_than_scan_with_stats`
 
 ### Requirement 4: Cost-Informed Join Access Selection [MUST]
 
-`choose_join_access` (`src/codegen/select/join_access.rs:86`) MUST consult
+`choose_join_access` (`db-core:src/codegen/row/select/join_access.rs:86`) MUST consult
 `PlanCost` when `Stats` are available for a binding's table, and MUST fall
 back to its current purely-structural selection (rowid → unique index →
 full scan, unchanged) when they are not — so a database that has never run
@@ -166,7 +166,7 @@ full scan, unchanged) when they are not — so a database that has never run
 - This requirement does not add join *reordering* — join order stays
   FROM-clause order; see Requirement 5 (#470) for cost-informed reordering.
 
-**Implementation:** `src/codegen/select/join_access.rs::choose_join_access`
+**Implementation:** `db-core:src/codegen/row/select/join_access.rs::choose_join_access`
 
 #### Scenario: Cost model does not change behavior without stats
 
@@ -191,7 +191,7 @@ full scan, unchanged) when they are not — so a database that has never run
 
 ### Requirement 5: Cost-Informed Inner/Cross Join Reordering [MUST]
 
-`compile_select_joined_scan` (`src/codegen/select/joins.rs`) MUST reorder a
+`compile_select_joined_scan` (`db-core:src/codegen/row/select/joins.rs`) MUST reorder a
 `FROM`-clause chain made entirely of `INNER`/`CROSS` joins (including
 already-resolved `NATURAL`/`USING`) by ascending `estimate_scan_cost`
 (`crate::planner`), scanning the smallest estimated table outermost — and
@@ -202,12 +202,12 @@ stats-free estimate is `u64::MAX`, so the cost-sort is a stable no-op and
 execution order matches pre-#470 behavior byte-for-byte). A join's `ON`
 constraint MUST be checked at the first execution level where every table
 it references is bound, not assumed adjacent to its original FROM-clause
-position. `EXPLAIN QUERY PLAN` (`src/codegen/select/eqp.rs`) MUST report
+position. `EXPLAIN QUERY PLAN` (`db-core:src/codegen/row/select/eqp.rs`) MUST report
 rows in the same reordered execution order this produces.
 
-**Implementation:** `src/codegen/select/join_order.rs::plan_join_order`,
-`src/codegen/select/joins.rs::compile_select_joined_scan`,
-`src/codegen/select/eqp.rs::explain_query_plan`
+**Implementation:** `db-core:src/codegen/row/select/join_order.rs::plan_join_order`,
+`db-core:src/codegen/row/select/joins.rs::compile_select_joined_scan`,
+`db-core:src/codegen/row/select/eqp.rs::explain_query_plan`
 
 #### Scenario: Join order is unchanged without ANALYZE
 
@@ -235,7 +235,7 @@ When a join level's single `ON` equality has no structural rowid/unique-
 index seek available (`choose_join_access` returns `None`) and `ANALYZE`
 stats show building a transient index over that level's join column is
 worthwhile (`crate::planner::is_automatic_index_worthwhile`),
-`compile_join_level_traverse` (`src/codegen/select/joins/level.rs`) MUST
+`compile_join_level_traverse` (`db-core:src/codegen/row/select/joins/level.rs`) MUST
 preface that level's scan with a transient automatic index build
 (`OpenEphemeral` + `AutoIndexInsert` pre-pass, then `AutoIndexSeek` per
 outer row) instead of a plain `Rewind`/`Next` scan. A database with no
@@ -253,8 +253,8 @@ exercise; see this spec's git history for the removed
 requirement/scenario text.)
 
 **Implementation:**
-`src/codegen/select/join_access.rs::choose_auto_index_probe`,
-`src/codegen/select/joins/level.rs::compile_join_level_traverse`
+`db-core:src/codegen/row/select/join_access.rs::choose_auto_index_probe`,
+`db-core:src/codegen/row/select/joins/level.rs::compile_join_level_traverse`
 
 #### Scenario: Automatic index prefaces an unindexed join level once ANALYZE has run
 

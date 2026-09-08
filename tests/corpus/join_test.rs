@@ -768,22 +768,16 @@ fn full_join_order_by_limit_matches_oracle_both_sides_unmatched() {
 /// restriction the ordinary (non-FULL) join tree already enforces for
 /// `DISTINCT` + `ORDER BY` + any JOIN.
 #[test]
-fn full_join_distinct_order_by_still_unsupported() {
+fn full_join_distinct_order_by_matches_oracle() {
+    // Supported since the codegen moved into db-core (#19): db-core's
+    // re-derived tree had grown DISTINCT + FULL JOIN + ORDER BY and it was
+    // carried over onto the moved code (db-core#219).
     let db = join_fixture_db("full_combinators");
-    let sql = "SELECT DISTINCT a.id FROM a FULL JOIN b ON a.id = b.a_id ORDER BY a.id";
-    let output = Command::new(CLI)
-        .arg("query")
-        .arg(&db)
-        .arg(sql)
-        .output()
-        .unwrap_or_else(|e| panic!("running {CLI} query {}: {e}", db.display()));
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(!output.status.success(), "expected {sql:?} to fail");
-    assert!(
-        stderr.contains("not yet supported"),
-        "expected an unsupported-construct diagnostic for {sql:?}; got: {stderr}"
+    assert_matches_oracle(
+        &db,
+        "SELECT DISTINCT a.id FROM a FULL JOIN b ON a.id = b.a_id ORDER BY a.id",
+        "full_join_distinct_order_by_matches_oracle",
     );
-    assert!(!stderr.contains("panicked at"), "must not panic: {stderr}");
 }
 
 /// #243: `EXPLAIN QUERY PLAN` reports `SEARCH ... USING INTEGER PRIMARY

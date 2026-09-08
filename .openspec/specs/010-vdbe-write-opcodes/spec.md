@@ -262,7 +262,7 @@ call, matching `IdxInsert`/`IdxDelete`'s existing stateless
 
 **Implementation:** `db-core:src/vm/row/cursor.rs::no_conflict`
 
-**Codegen:** `src/codegen/stmt/insert.rs::emit_unique_check` emits this
+**Codegen:** `db-core:src/codegen/row/stmt/insert.rs::emit_unique_check` emits this
 opcode per `UNIQUE` index (`schema.indexes.iter().filter(|i| i.unique)`)
 before the row's own `Insert`, dispatching `ON CONFLICT`
 (`IGNORE`/`REPLACE`/`ABORT`+`FAIL`+`ROLLBACK`) the same way
@@ -329,7 +329,7 @@ before the row's own `Insert`, dispatching `ON CONFLICT`
   covers full CRUD including `UPDATE` (not part of this ticket's opcode
   set, which stops at `Insert`/`Delete`/`IdxInsert`/`NewRowid`) exercised
   through the real codegen/CLI path rather than hand-assembled — landed
-  by #217 (compiling `UPDATE` via `src/codegen/stmt/update.rs`) and is no
+  by #217 (compiling `UPDATE` via `db-core:src/codegen/row/stmt/update.rs`) and is no
   longer `#[ignore]`d.
 - Parity suite (#72, VM-diff against oracle `EXPLAIN`): none of this
   spec's three new opcodes (`OpenWrite`/`Insert`/`NewRowid`) were
