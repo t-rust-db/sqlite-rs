@@ -6,6 +6,16 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-09-08
+
+### Changed
+
+- db-core pinned to v0.71.1 and db-storage to v0.6.2. db-core#231 made
+  `vm::row::Cursor::{column, rowid}` return `Option` (`None` = no current
+  row instead of a `Null`/`0` stand-in); `src/vdbe/adapter.rs`'s table and
+  index cursors follow, with a column index past the record still yielding
+  `Some(Null)` (SQLite's short-record rule). SBOMs regenerated.
+
 ## [0.20.0] - 2026-09-08
 
 ### Changed
