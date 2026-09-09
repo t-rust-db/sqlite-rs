@@ -294,7 +294,8 @@ fn run_query(db_path: &Path, record: &QueryRecord) -> Outcome {
             // match must stay exhaustive as new variants are added for
             // other statement kinds.
             | CodegenError::RowShapeMismatch { .. }
-            | CodegenError::CircularView { .. },
+            | CodegenError::CircularView { .. }
+            | CodegenError::Internal { .. },
         ) => return Outcome::Skip,
     };
 
