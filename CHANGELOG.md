@@ -30,6 +30,34 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
   default whole-schema scan is implemented) — see spec 014-grep's
   "Descoped" section.
 
+### Removed
+
+- **Spike 008 (tree-walking evaluator) throwaway code** (#25): `src/`,
+  `tests/`, `Cargo.toml`/`Cargo.lock` deleted per its own findings.md
+  disposal note and ADR-0008 (spike discipline). `findings.md` and the
+  oracle-diffed vectors it fed (`tests/corpus/expr_vectors/*.jsonl`)
+  survive.
+
+### Audited (no change)
+
+- Post-migration cleanup epic #25, after #17-#19 repointed
+  `src/{parser,vdbe,codegen,planner}` at `db_core`/`db_storage`:
+  - `examples/*.rs` (`crud`, `query`, `read_database`, `wal_mode`) still
+    compile clean against the new thin re-exports (`sqlite_rs::btree`,
+    `::codegen`, `::vdbe`, `::parser` all still resolve) — kept as-is,
+    no `Cargo.toml` changes needed (no `[[example]]` entries; cargo
+    auto-discovers `examples/`).
+  - `tests/performance/*` benches and their `[[bench]]`/`make bench*`
+    wiring were already fully migrated to t-rust-db/benchmark
+    (ADR-0041, #22, closed) before this epic started — no dangling
+    references found, no action needed.
+  - `tests/spike/{001..013}_*`: only `003_csv_export` and
+    `008_tree_walker` depend on the `sqlite-rs` crate; the rest are
+    standalone and unaffected. `003_csv_export` no longer compiles
+    against current `record::Value` (unrelated to the #17-#19
+    repoint) but per ADR-0008 spikes are frozen/exempt from refactor —
+    kept as-is.
+
 ## [0.23.0] - 2026-09-09
 
 ### Removed
