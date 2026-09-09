@@ -47,3 +47,4 @@ Specs record what the system must do; ADRs record **why it is shaped this way** 
 | [0041](0041-oracle-parity-lives-in-benchmark.md) | Full oracle parity testing lives in t-rust-db/benchmark `parity/sqlite-rs`, not in this crate (supersedes ADR-0004's `tests/parity/` clause) | 2026-09-07 |
 | [0042](0042-no-private-crate-registry.md) | No private crate registry: first-party crates are git dependencies; the Artifactory evaluation is withdrawn (supersedes ADR-0038) | 2026-09-08 |
 | [0043](0043-sqlgrep-serverless-trigram-cache.md) | ~~`sqlgrep`: a serverless trigram grep over a per-root db-storage cache file~~ — superseded 2026-09-09, moved to t-rust-db/trigrep; ADR-0040 amendment withdrawn | 2026-09-08 |
+| [0044](0044-grep-regex-cli-only-dependency.md) | `grep` subcommand's `regex` dependency is CLI-only, gated exactly like `db-cli` (amends ADR-0040 decision 2) | 2026-09-09 |

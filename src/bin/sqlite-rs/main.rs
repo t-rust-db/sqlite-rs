@@ -25,6 +25,7 @@ mod completion;
 mod dot_commands;
 mod dump;
 mod exec;
+mod grep;
 mod highlight;
 mod mode;
 mod pragma_query;
@@ -53,6 +54,7 @@ fn main() -> ExitCode {
             None => usage_error("export <file>"),
         },
         Some("query") => query::run_query(args.collect()),
+        Some("grep") => grep::run_grep(args.collect()),
         Some("tables") => match args.next() {
             Some(path) => tables::run_tables(Path::new(&path), args.next().as_deref()),
             None => usage_error("tables <file> [PATTERN]"),
@@ -73,6 +75,6 @@ fn main() -> ExitCode {
         // invocation shape) still reports the usage error rather than
         // silently discarding it.
         Some(path) if args.next().is_none() => repl::run_repl(Path::new(&path)),
-        _ => usage_error("[--version] <dump|export|query|tables|exec|repl> <file>"),
+        _ => usage_error("[--version] <dump|export|query|grep|tables|exec|repl> <file>"),
     }
 }
