@@ -1,6 +1,14 @@
 # 0043 — `sqlgrep`: a serverless trigram grep over a per-root db-storage cache file (amends ADR-0040's third-party clause)
 
-**Status:** Accepted · **Date:** 2026-09-08 · Amends decision 2 of ADR-0040
+**Status:** Superseded (moved) 2026-09-09 · **Date:** 2026-09-08 · Amended decision 2 of ADR-0040 — amendment withdrawn
+
+> **Moved:** the binary, its spec (013) and its open issues now live in
+> [t-rust-db/trigrep](https://github.com/t-rust-db/trigrep) (binary `tg`;
+> ADR 0001 and spec 001 there). Decision 6 below is withdrawn: ADR-0040
+> decision 2 stands unamended — this crate declares no third-party runtime
+> dependencies and has no feature-gated exception. Rationale: a name that
+> collided with eirtools/sqlgrep (which greps *inside* SQLite files) and a
+> tool that needed nothing of this crate beyond db-storage's re-exports.
 
 ## Context
 

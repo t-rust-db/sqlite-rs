@@ -6,6 +6,26 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-09-09
+
+### Removed
+
+- **`sqlgrep` moved out** to its own repository,
+  [t-rust-db/trigrep](https://github.com/t-rust-db/trigrep) (crate `trigrep`,
+  binary `tg`, v0.1.1), depending on `db-storage` directly. The `sqlgrep`
+  cargo feature, the `[[bin]]`, `src/bin/sqlgrep/`, its two integration tests
+  and the optional `regex`/`regex-syntax`/`dirs` declarations are gone;
+  `default` is back to `["cli"]`. `regex`, `regex-automata`, `aho-corasick` and
+  `memchr` leave the dependency closure and their `cargo vet` exemptions;
+  `regex-syntax` remains dev-only via `proptest` (safe-to-run); `dirs` stays
+  only as db-cli's transitive dep. Both
+  SBOMs regenerated. ADR-0043 is superseded (its amendment of ADR-0040
+  decision 2 withdrawn — the library declares no third-party runtime
+  dependencies, no exception clause); spec 013 is a pointer. Issues #34,
+  #38–#43 transferred (trigrep #1–#7). Why: the name collided with
+  [eirtools/sqlgrep](https://github.com/eirtools/sqlgrep), which greps
+  *inside* SQLite files — a different tool, planned here as `sqlite-rs grep`.
+
 ## [0.22.0] - 2026-09-09
 
 ### Added
