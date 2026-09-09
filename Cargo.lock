@@ -429,7 +429,7 @@ dependencies = [
 
 [[package]]
 name = "sqlite-rs"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "db-cli",
  "db-core",

@@ -6,6 +6,8 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-09-09
+
 ### Added
 
 - **`sqlgrep` searches are fast by default** (#38): a plain search no
