@@ -6,6 +6,8 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-09-09
+
 ### Added
 
 - **`sqlgrep` binary** (#34, ADR-0043, spec 013): serverless trigram-indexed
