@@ -9,21 +9,39 @@
 //! own to get subtly wrong. Outside a work tree it is a plain recursive
 //! walk that skips `.git` directories and never follows symlinks.
 
+use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Paths relative to `root`, sorted, one per regular file to consider.
-pub fn list_files(root: &Path) -> std::io::Result<Vec<String>> {
+/// One candidate file: its path relative to `root`, plus the metadata the
+/// walk already paid for a `stat`-equivalent syscall to get — `None` when
+/// the list came from `git ls-files`, which names paths without touching
+/// the filesystem (#38: reusing this avoids a second, redundant `stat`
+/// per file in `index::update`'s own diff, halving syscalls on the
+/// non-git fallback path).
+pub struct Entry {
+    pub rel: String,
+    pub metadata: Option<Metadata>,
+}
+
+/// Files under `root` to consider, sorted by path, deduplicated.
+pub fn list_files(root: &Path) -> std::io::Result<Vec<Entry>> {
     let mut files = match git_ls_files(root) {
-        Some(list) => list,
+        Some(list) => list
+            .into_iter()
+            .map(|rel| Entry {
+                rel,
+                metadata: None,
+            })
+            .collect(),
         None => {
             let mut out = Vec::new();
             walk_dir(root, root, &mut out)?;
             out
         }
     };
-    files.sort_unstable();
-    files.dedup();
+    files.sort_unstable_by(|a, b| a.rel.cmp(&b.rel));
+    files.dedup_by(|a, b| a.rel == b.rel);
     Ok(files)
 }
 
@@ -61,12 +79,14 @@ fn git_ls_files(root: &Path) -> Option<Vec<String>> {
     )
 }
 
-fn walk_dir(root: &Path, dir: &Path, out: &mut Vec<String>) -> std::io::Result<()> {
+fn walk_dir(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path: PathBuf = entry.path();
         // `symlink_metadata` so a symlinked directory is neither followed
-        // nor listed — loops and out-of-root escapes are both avoided.
+        // nor listed — loops and out-of-root escapes are both avoided. A
+        // symlink is neither `is_dir` nor `is_file` under this call, so
+        // it is silently skipped either way.
         let meta = std::fs::symlink_metadata(&path)?;
         if meta.is_dir() {
             if entry.file_name() == ".git" {
@@ -75,7 +95,10 @@ fn walk_dir(root: &Path, dir: &Path, out: &mut Vec<String>) -> std::io::Result<(
             walk_dir(root, &path, out)?;
         } else if meta.is_file() {
             if let Ok(rel) = path.strip_prefix(root) {
-                out.push(rel.to_string_lossy().into_owned());
+                out.push(Entry {
+                    rel: rel.to_string_lossy().into_owned(),
+                    metadata: Some(meta),
+                });
             }
         }
     }

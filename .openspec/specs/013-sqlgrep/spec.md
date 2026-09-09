@@ -13,7 +13,7 @@ through `db-storage`'s b-tree/pager layer with no SQL, no daemon and no
 format of its own. Every invocation opens the cache, updates what changed,
 queries, and exits.
 
-Refs: #34 (Requirements 1-6); ADR-0043.
+Refs: #34 (Requirements 1-6); #38 (Requirement 7); ADR-0043.
 
 ## Tier Position
 
@@ -175,3 +175,35 @@ be neither followed nor indexed.
 - THEN exactly one hit, from the text file
 
 **Tests:** `tests/unit/sqlgrep_cli_test.rs::binary_files_and_symlinks_are_skipped`
+
+### Requirement 7: `-n`/`--no-update` skips the freshness check [MUST]
+
+Passing `-n` or `--no-update` MUST make `sqlgrep` search (or, for `index`,
+open) the cache exactly as it stands, performing no filesystem walk, no
+`stat`, no hashing, and no cache write — trading "may miss a change since
+the last update" for latency close to the trigram lookup and regex alone.
+A file present in the cache and unchanged on disk MUST still be found
+normally, since the match itself always reads the real file.
+
+**Implementation:** `src/bin/sqlgrep/main.rs::open_and_update`
+
+#### Scenario: A file added after the last index is invisible under -n, unchanged files are not
+
+- GIVEN a root indexed with one file, then a second file added afterward
+  with the same searched content
+- WHEN searching with `-n`
+- THEN only the originally indexed file is reported, the cache file's own
+  mtime is unchanged by the search, and a following plain search reports
+  both
+
+**Tests:** `tests/unit/sqlgrep_cli_test.rs::no_update_flag_searches_the_cache_as_is`
+
+#### Scenario: `-n` also makes `index` a pure read
+
+- GIVEN a fresh root with one file, never indexed
+- WHEN `sqlgrep index --no-update` runs
+- THEN the cache file exists (opening still bootstraps an empty schema)
+  but nothing was scanned or written, and a `-n` search of it finds
+  nothing
+
+**Tests:** `tests/unit/sqlgrep_cli_test.rs::no_update_on_index_makes_it_a_no_op`

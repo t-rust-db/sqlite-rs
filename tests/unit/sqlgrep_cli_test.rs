@@ -67,6 +67,21 @@ impl Scratch {
         )
     }
 
+    fn search_args(&self, args: &[&str], pattern: &str) -> (i32, String) {
+        let mut a: Vec<&str> = args.to_vec();
+        a.push(pattern);
+        let out = Command::new(SQLGREP)
+            .env("SQLGREP_CACHE_DIR", &self.cache_dir)
+            .args(&a)
+            .arg(&self.root)
+            .output()
+            .unwrap();
+        (
+            out.status.code().unwrap(),
+            String::from_utf8_lossy(&out.stdout).into_owned(),
+        )
+    }
+
     fn cache_path(&self) -> PathBuf {
         let out = self.run(&["cache-path"]);
         assert!(out.status.success());
@@ -290,6 +305,95 @@ fn one_cache_file_per_canonical_root() {
     // Same root through a non-canonical spelling: same file.
     assert_eq!(path_for("a"), path_for("b/../a/."));
     assert!(path_for("a").starts_with(s.cache_dir.to_str().unwrap()));
+}
+
+/// #38: `-n`/`--no-update` must skip the freshness check entirely — a
+/// file added after the last `index` stays invisible (its id was never
+/// assigned, so it can never be a trigram candidate) until a normal run
+/// happens, and no cache write occurs in between. Search always reads
+/// the *real* file for the actual match, though: an existing, unchanged
+/// file is found by `-n` exactly as it would be without it.
+#[test]
+fn no_update_flag_searches_the_cache_as_is() {
+    let s = scratch("no_update");
+    s.write("a.txt", "steady_needle\n");
+    s.run(&["index"]);
+    let before = std::fs::metadata(s.cache_path())
+        .unwrap()
+        .modified()
+        .unwrap();
+
+    // A brand-new file with the same needle: never indexed, so -n must
+    // not see it even though its content matches.
+    s.write("b.txt", "steady_needle too\n");
+
+    let (code, stdout) = s.search_args(&["-n"], "steady_needle");
+    assert_eq!(code, 0, "{stdout}");
+    assert_eq!(
+        stdout.lines().count(),
+        1,
+        "{stdout} (b.txt must be invisible)"
+    );
+    assert!(stdout.contains("a.txt:1:"), "{stdout}");
+
+    let after = std::fs::metadata(s.cache_path())
+        .unwrap()
+        .modified()
+        .unwrap();
+    assert_eq!(before, after, "-n must not write to the cache");
+
+    // A plain search (no -n) catches up as normal.
+    let (code, stdout) = s.search("steady_needle");
+    assert_eq!(code, 0, "{stdout}");
+    assert_eq!(stdout.lines().count(), 2, "{stdout}");
+}
+
+/// #38: `--no-update` combined with `index` also stays a pure read —
+/// verifies the flag has one meaning everywhere it is accepted, not one
+/// behavior for `index` and another for a bare search.
+#[test]
+fn no_update_on_index_makes_it_a_no_op() {
+    let s = scratch("no_update_index");
+    s.write("a.txt", "one\n");
+    let out = Command::new(SQLGREP)
+        .env("SQLGREP_CACHE_DIR", &s.cache_dir)
+        .args(["index", "--no-update"])
+        .arg(&s.root)
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    // The cache file is still created (opening always bootstraps an
+    // empty schema) but nothing was scanned or written into it.
+    assert!(s.cache_path().exists());
+    assert_eq!(
+        s.search_args(&["-n"], "one").0,
+        1,
+        "nothing was ever indexed"
+    );
+    assert_cache_healthy(&s.cache_path());
+}
+
+/// #38: the non-git fallback walk collects metadata while listing files;
+/// `index::update` must reuse it (not re-`stat`) and still get correct
+/// mtime/size — proven by an edit being detected exactly once, not
+/// silently missed because a second stat somehow disagreed with the walk.
+#[test]
+fn metadata_reused_from_the_walk_still_detects_edits_outside_git() {
+    let s = scratch("no_git_walk");
+    s.write("a.txt", "before\n");
+    let out = s.run(&["index"]);
+    assert!(String::from_utf8_lossy(&out.stderr).contains("1 added"));
+
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    s.write("a.txt", "after_marker\n");
+    let out = s.run(&["index"]);
+    let report = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        report.contains("0 added, 1 changed, 0 removed, 0 unchanged"),
+        "{report}"
+    );
+    assert_eq!(s.search("after_marker").0, 0);
+    assert_eq!(s.search("before").0, 1);
 }
 
 /// Regression pin for a db-storage v0.6.2 bug found while indexing (#34,

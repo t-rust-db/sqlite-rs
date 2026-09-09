@@ -142,12 +142,15 @@ A second binary ([ADR-0043](.openspec/adr/0043-sqlgrep-serverless-trigram-cache.
 ```bash
 target/release/sqlgrep 'fn insert_row' .      # search (builds the cache on first use)
 target/release/sqlgrep -i 'todo' src           # case-insensitive (scans every indexed file)
+target/release/sqlgrep -n 'fn insert_row' .    # skip the freshness check — fastest, may miss recent edits
 target/release/sqlgrep index .                 # just bring the cache up to date
 target/release/sqlgrep index --rebuild .       # start over (also compacts stale postings)
 target/release/sqlgrep cache-path .            # where this root's cache lives
 ```
 
 The cache is one file per canonicalized root under `$SQLGREP_CACHE_DIR`, or by default `~/.cache/sqlgrep/<key>.db` on Linux and `~/Library/Caches/sqlgrep/<key>.db` on macOS; open it with `sqlite3` to inspect the `files`, `trigrams` and `meta` tables. Inside a git work tree `.gitignore` is honored (the file list comes from `git ls-files --exclude-standard`); binaries (NUL in the first 8 KiB), symlinks and files over 64 MiB are skipped. A modified or deleted file leaves stale posting-list entries that are filtered at query time; `--rebuild` reclaims them. Exit codes follow grep: 0 matched, 1 nothing, 2 error. The binary is behind the default-on `sqlgrep` feature, which is what pulls `regex` and `dirs` in.
+
+On a large, mostly-static tree the default freshness check (a `stat` per indexed file) can dominate query latency far more than the search itself — on a 1 GB, 56k-file tree it was measured at 1.6 s versus single-digit milliseconds for the trigram lookup and regex. `-n`/`--no-update` (#38) skips that check and searches the cache exactly as it last stood: a file added, edited or deleted since the last `index`/plain search is invisible until a normal run catches up. Use it when the caller already knows the tree hasn't changed (CI right after a build step, an editor extension that calls `index` on save).
 
 ### Documentation
 

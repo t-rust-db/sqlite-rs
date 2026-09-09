@@ -9,10 +9,17 @@
 //! own VDBE sits on.
 //!
 //! ```text
-//! sqlgrep [-i] [--rebuild] <pattern> [path]   search (indexes first if needed)
-//! sqlgrep index [--rebuild] [path]            build/update the cache only
-//! sqlgrep cache-path [path]                   print where the cache file is
+//! sqlgrep [-i] [--rebuild] [-n] <pattern> [path]   search (indexes first, unless -n)
+//! sqlgrep index [--rebuild] [path]                 build/update the cache only
+//! sqlgrep cache-path [path]                        print where the cache file is
 //! ```
+//!
+//! `-n`/`--no-update` (#38) skips the freshness check entirely: on a
+//! large, mostly-static tree that check (a `stat` per indexed file) can
+//! dominate a query's latency far more than the search itself, so a
+//! caller that knows the tree hasn't changed since the last `index` can
+//! ask to search the cache exactly as it stands — at the cost that any
+//! edit since then is invisible until a plain `index`/search runs.
 //!
 //! Exit codes follow grep: 0 = matches, 1 = none, 2 = error.
 
@@ -33,6 +40,7 @@ use regex::bytes::RegexBuilder;
 struct Args {
     rebuild: bool,
     case_insensitive: bool,
+    no_update: bool,
     positional: Vec<String>,
 }
 
@@ -40,6 +48,7 @@ fn parse_args() -> Result<Args, String> {
     let mut args = Args {
         rebuild: false,
         case_insensitive: false,
+        no_update: false,
         positional: Vec::new(),
     };
     let mut literal_rest = false;
@@ -49,6 +58,7 @@ fn parse_args() -> Result<Args, String> {
             "--" => literal_rest = true,
             "--rebuild" => args.rebuild = true,
             "-i" | "--ignore-case" => args.case_insensitive = true,
+            "-n" | "--no-update" => args.no_update = true,
             "-h" | "--help" => return Err(String::new()),
             s if s.starts_with('-') && s.len() > 1 => return Err(format!("unknown flag {s}")),
             _ => args.positional.push(a),
@@ -59,7 +69,7 @@ fn parse_args() -> Result<Args, String> {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: sqlgrep [-i] [--rebuild] <pattern> [path]\n       \
+        "usage: sqlgrep [-i] [--rebuild] [-n] <pattern> [path]\n       \
          sqlgrep index [--rebuild] [path]\n       \
          sqlgrep cache-path [path]"
     );
@@ -119,7 +129,7 @@ fn run_index(args: &Args) -> ExitCode {
         Ok(r) => r,
         Err(e) => return fail(&e),
     };
-    match open_and_update(&root, args.rebuild) {
+    match open_and_update(&root, args.rebuild, args.no_update) {
         Ok((cache, stats)) => {
             eprintln!(
                 "{}: {} added, {} changed, {} removed, {} unchanged ({} posting lists rewritten)",
@@ -136,9 +146,17 @@ fn run_index(args: &Args) -> ExitCode {
     }
 }
 
-fn open_and_update(root: &Path, rebuild: bool) -> cache::Result<(cache::Cache, index::Stats)> {
+fn open_and_update(
+    root: &Path,
+    rebuild: bool,
+    no_update: bool,
+) -> cache::Result<(cache::Cache, index::Stats)> {
     let mut cache = cache::open(root, rebuild)?;
-    let stats = index::update(&mut cache, root)?;
+    let stats = if no_update {
+        index::Stats::default()
+    } else {
+        index::update(&mut cache, root)?
+    };
     Ok((cache, stats))
 }
 
@@ -164,7 +182,7 @@ fn run_search(args: &Args) -> ExitCode {
         Ok(t) => t,
         Err(e) => return fail(&e),
     };
-    let (cache, _) = match open_and_update(&root, args.rebuild) {
+    let (cache, _) = match open_and_update(&root, args.rebuild, args.no_update) {
         Ok(v) => v,
         Err(e) => return fail(&e),
     };
