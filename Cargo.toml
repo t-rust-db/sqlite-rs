@@ -1,6 +1,6 @@
 [package]
 name = "sqlite-rs"
-version = "0.25.0"
+version = "0.25.1"
 edition = "2021"
 publish = false
 license = "Apache-2.0"
@@ -119,6 +119,10 @@ path = "tests/unit/introspection_pragmas.rs"
 [[test]]
 name = "unit_codegen"
 path = "tests/unit/codegen.rs"
+
+[[test]]
+name = "unit_cli_smoke"
+path = "tests/unit/cli_smoke.rs"
 
 [[test]]
 name = "unit_repl_dot_commands"
