@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-08T20:16:55.000000000Z",
+    "timestamp": "2026-09-09T06:45:34.000000000Z",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -13,9 +13,9 @@
     ],
     "component": {
       "type": "application",
-      "bom-ref": "path+file://.#0.20.1",
+      "bom-ref": "path+file://.#0.23.0",
       "name": "sqlite-rs",
-      "version": "0.20.1",
+      "version": "0.23.0",
       "description": "A binary-compatible Rust replication of SQLite",
       "scope": "required",
       "licenses": [
@@ -23,7 +23,7 @@
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/sqlite-rs@0.20.1?download_url=file://.",
+      "purl": "pkg:cargo/sqlite-rs@0.23.0?download_url=file://.",
       "externalReferences": [
         {
           "type": "documentation",
@@ -37,38 +37,31 @@
       "components": [
         {
           "type": "library",
-          "bom-ref": "path+file://.#0.20.1 bin-target-0",
+          "bom-ref": "path+file://.#0.23.0 bin-target-0",
           "name": "sqlite_rs",
-          "version": "0.20.1",
-          "purl": "pkg:cargo/sqlite-rs@0.20.1?download_url=file://.#src/lib.rs"
+          "version": "0.23.0",
+          "purl": "pkg:cargo/sqlite-rs@0.23.0?download_url=file://.#src/lib.rs"
         },
         {
           "type": "application",
-          "bom-ref": "path+file://.#0.20.1 bin-target-1",
+          "bom-ref": "path+file://.#0.23.0 bin-target-1",
           "name": "lock_probe",
-          "version": "0.20.1",
-          "purl": "pkg:cargo/sqlite-rs@0.20.1?download_url=file://.#tests/helpers/lock_probe.rs"
+          "version": "0.23.0",
+          "purl": "pkg:cargo/sqlite-rs@0.23.0?download_url=file://.#tests/helpers/lock_probe.rs"
         },
         {
           "type": "application",
-          "bom-ref": "path+file://.#0.20.1 bin-target-2",
-          "name": "sqlgrep",
-          "version": "0.20.1",
-          "purl": "pkg:cargo/sqlite-rs@0.20.1?download_url=file://.#src/bin/sqlgrep/main.rs"
-        },
-        {
-          "type": "application",
-          "bom-ref": "path+file://.#0.20.1 bin-target-3",
+          "bom-ref": "path+file://.#0.23.0 bin-target-2",
           "name": "sqlite-rs",
-          "version": "0.20.1",
-          "purl": "pkg:cargo/sqlite-rs@0.20.1?download_url=file://.#src/bin/sqlite-rs/main.rs"
+          "version": "0.23.0",
+          "purl": "pkg:cargo/sqlite-rs@0.23.0?download_url=file://.#src/bin/sqlite-rs/main.rs"
         },
         {
           "type": "application",
-          "bom-ref": "path+file://.#0.20.1 bin-target-4",
+          "bom-ref": "path+file://.#0.23.0 bin-target-3",
           "name": "write_loop_probe",
-          "version": "0.20.1",
-          "purl": "pkg:cargo/sqlite-rs@0.20.1?download_url=file://.#tests/helpers/write_loop_probe.rs"
+          "version": "0.23.0",
+          "purl": "pkg:cargo/sqlite-rs@0.23.0?download_url=file://.#tests/helpers/write_loop_probe.rs"
         }
       ]
     },
@@ -121,37 +114,6 @@
       "version": "0.6.3",
       "scope": "required",
       "purl": "pkg:cargo/db-storage@0.6.3?vcs_url=git%2Bhttps://github.com/t-rust-db/db-storage%40d09fab23700d84eb16a379198f3258e28f32efa4"
-    },
-    {
-      "type": "library",
-      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#aho-corasick@1.1.5",
-      "author": "Andrew Gallant <jamslam@gmail.com>",
-      "name": "aho-corasick",
-      "version": "1.1.5",
-      "description": "Fast multiple substring searching.",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "c982642fa9e8606056828ee9a8505737230110bb1099153c79efe865c59d12ba"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "Unlicense OR MIT"
-        }
-      ],
-      "purl": "pkg:cargo/aho-corasick@1.1.5",
-      "externalReferences": [
-        {
-          "type": "website",
-          "url": "https://github.com/BurntSushi/aho-corasick"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/BurntSushi/aho-corasick"
-        }
-      ]
     },
     {
       "type": "library",
@@ -262,41 +224,6 @@
     },
     {
       "type": "library",
-      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#memchr@2.8.3",
-      "author": "Andrew Gallant <jamslam@gmail.com>, bluss",
-      "name": "memchr",
-      "version": "2.8.3",
-      "description": "Provides extremely fast (uses SIMD on x86_64, aarch64 and wasm32) routines for 1, 2 or 3 byte search and single substring search. ",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "Unlicense OR MIT"
-        }
-      ],
-      "purl": "pkg:cargo/memchr@2.8.3",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/memchr/"
-        },
-        {
-          "type": "website",
-          "url": "https://github.com/BurntSushi/memchr"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/BurntSushi/memchr"
-        }
-      ]
-    },
-    {
-      "type": "library",
       "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#memmap2@0.9.11",
       "author": "Dan Burkert <dan@danburkert.com>, Yevhenii Reizner <razrfalcon@gmail.com>, The Contributors",
       "name": "memmap2",
@@ -358,111 +285,6 @@
         {
           "type": "vcs",
           "url": "https://github.com/soc/option-ext.git"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#regex-automata@0.4.18",
-      "author": "The Rust Project Developers, Andrew Gallant <jamslam@gmail.com>",
-      "name": "regex-automata",
-      "version": "0.4.18",
-      "description": "Automata construction and matching using regular expressions.",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "ad8553b9b26413251cbf30e620595c7a41b3887f03da04579c0e6b0d6a06b4b2"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "purl": "pkg:cargo/regex-automata@0.4.18",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/regex-automata"
-        },
-        {
-          "type": "website",
-          "url": "https://github.com/rust-lang/regex/tree/master/regex-automata"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/rust-lang/regex"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#regex-syntax@0.8.11",
-      "author": "The Rust Project Developers, Andrew Gallant <jamslam@gmail.com>",
-      "name": "regex-syntax",
-      "version": "0.8.11",
-      "description": "A regular expression parser.",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "purl": "pkg:cargo/regex-syntax@0.8.11",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/regex-syntax"
-        },
-        {
-          "type": "website",
-          "url": "https://github.com/rust-lang/regex/tree/master/regex-syntax"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/rust-lang/regex"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#regex@1.13.1",
-      "author": "The Rust Project Developers, Andrew Gallant <jamslam@gmail.com>",
-      "name": "regex",
-      "version": "1.13.1",
-      "description": "An implementation of regular expressions for Rust. This implementation uses finite automata and guarantees linear time matching on all inputs. ",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "f020237b6c8eed93db2e2cb53c00c60a8e1bc73da7d073199a1180401450218d"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "purl": "pkg:cargo/regex@1.13.1",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/regex"
-        },
-        {
-          "type": "website",
-          "url": "https://github.com/rust-lang/regex"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/rust-lang/regex"
         }
       ]
     },
@@ -584,20 +406,11 @@
       ]
     },
     {
-      "ref": "path+file://.#0.20.1",
+      "ref": "path+file://.#0.23.0",
       "dependsOn": [
         "git+https://github.com/t-rust-db/db-cli?tag=v0.4.1#0.4.1",
         "git+https://github.com/t-rust-db/db-core?tag=v0.71.1#0.71.1",
-        "git+https://github.com/t-rust-db/db-storage?tag=v0.6.3#0.6.3",
-        "registry+https://github.com/rust-lang/crates.io-index#dirs@5.0.1",
-        "registry+https://github.com/rust-lang/crates.io-index#regex@1.13.1",
-        "registry+https://github.com/rust-lang/crates.io-index#regex-syntax@0.8.11"
-      ]
-    },
-    {
-      "ref": "registry+https://github.com/rust-lang/crates.io-index#aho-corasick@1.1.5",
-      "dependsOn": [
-        "registry+https://github.com/rust-lang/crates.io-index#memchr@2.8.3"
+        "git+https://github.com/t-rust-db/db-storage?tag=v0.6.3#0.6.3"
       ]
     },
     {
@@ -620,9 +433,6 @@
       "ref": "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189"
     },
     {
-      "ref": "registry+https://github.com/rust-lang/crates.io-index#memchr@2.8.3"
-    },
-    {
       "ref": "registry+https://github.com/rust-lang/crates.io-index#memmap2@0.9.11",
       "dependsOn": [
         "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189"
@@ -630,26 +440,6 @@
     },
     {
       "ref": "registry+https://github.com/rust-lang/crates.io-index#option-ext@0.2.0"
-    },
-    {
-      "ref": "registry+https://github.com/rust-lang/crates.io-index#regex-automata@0.4.18",
-      "dependsOn": [
-        "registry+https://github.com/rust-lang/crates.io-index#aho-corasick@1.1.5",
-        "registry+https://github.com/rust-lang/crates.io-index#memchr@2.8.3",
-        "registry+https://github.com/rust-lang/crates.io-index#regex-syntax@0.8.11"
-      ]
-    },
-    {
-      "ref": "registry+https://github.com/rust-lang/crates.io-index#regex-syntax@0.8.11"
-    },
-    {
-      "ref": "registry+https://github.com/rust-lang/crates.io-index#regex@1.13.1",
-      "dependsOn": [
-        "registry+https://github.com/rust-lang/crates.io-index#aho-corasick@1.1.5",
-        "registry+https://github.com/rust-lang/crates.io-index#memchr@2.8.3",
-        "registry+https://github.com/rust-lang/crates.io-index#regex-automata@0.4.18",
-        "registry+https://github.com/rust-lang/crates.io-index#regex-syntax@0.8.11"
-      ]
     },
     {
       "ref": "registry+https://github.com/rust-lang/crates.io-index#ruzstd@0.7.3",

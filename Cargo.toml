@@ -1,6 +1,6 @@
 [package]
 name = "sqlite-rs"
-version = "0.22.0"
+version = "0.23.0"
 edition = "2021"
 publish = false
 license = "Apache-2.0"
@@ -23,20 +23,11 @@ db-core = { version = "0.71.1", git = "https://github.com/t-rust-db/db-core", ta
 # optional so library consumers with `default-features = false` never pull
 # it (or its libc/dirs closure) in.
 db-cli = { version = "0.4.1", git = "https://github.com/t-rust-db/db-cli", tag = "v0.4.1", optional = true }
-# `sqlgrep`-only (#34, ADR-0043): the regex engine plus its HIR (for
-# required-literal extraction) and the XDG cache-dir lookup. Optional so
-# `default-features = false` library consumers never see them; `dirs` is
-# the same crate/version db-cli already pulls in.
-regex = { version = "1", optional = true }
-regex-syntax = { version = "0.8", optional = true }
-dirs = { version = "5", optional = true }
 
 [features]
-default = ["cli", "sqlgrep"]
+default = ["cli"]
 # The `sqlite-rs` binary. Off => library only.
 cli = ["dep:db-cli"]
-# The `sqlgrep` binary (#34). Off => no regex/dirs in the closure.
-sqlgrep = ["dep:regex", "dep:regex-syntax", "dep:dirs"]
 
 # The CLI itself; auto-discovery would find it anyway, but the feature gate
 # needs an explicit entry.
@@ -44,12 +35,6 @@ sqlgrep = ["dep:regex", "dep:regex-syntax", "dep:dirs"]
 name = "sqlite-rs"
 path = "src/bin/sqlite-rs/main.rs"
 required-features = ["cli"]
-
-# Serverless trigram grep over a per-root db-storage cache file (#34).
-[[bin]]
-name = "sqlgrep"
-path = "src/bin/sqlgrep/main.rs"
-required-features = ["sqlgrep"]
 
 # Test-only helper: a genuine second OS process for the cross-process
 # lock-contention tests (#66; now `tests/corpus/*_interop_test.rs` — the
@@ -139,18 +124,6 @@ path = "tests/unit/repl_dot_commands.rs"
 [[test]]
 name = "unit_repl_history"
 path = "tests/unit/repl_history.rs"
-
-# `sqlgrep` (#34): spawn the binary via `CARGO_BIN_EXE_sqlgrep`, so both
-# need the `sqlgrep` feature (on by default) to have anything to run.
-[[test]]
-name = "unit_sqlgrep_cli"
-path = "tests/unit/sqlgrep_cli_test.rs"
-required-features = ["sqlgrep"]
-
-[[test]]
-name = "unit_sqlgrep_crash"
-path = "tests/unit/sqlgrep_crash_test.rs"
-required-features = ["sqlgrep"]
 
 [[test]]
 name = "extracted_sql_corpus"

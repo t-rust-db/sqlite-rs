@@ -49,7 +49,10 @@ allow-list cannot stay as it is either.
    `https://github.com/t-rust-db/<crate>` URL as it is adopted; anything
    else stays `unknown-git = "deny"`.
 2. **Third-party runtime dependencies remain targeted at zero, one level
-   up.** This crate declares none of its own. What arrives transitively
+   up.** This crate declares none of its own. *(ADR-0043 amended this on
+   2026-09-08 for a feature-gated binary; the amendment was withdrawn on
+   2026-09-09 when that binary moved to t-rust-db/trigrep. The clause stands
+   as written.)* What arrives transitively
    through a first-party crate is that crate's debt, tracked there
    (t-rust-db/db-storage#12; db-cli's `libc`/`dirs` — decision 2026-09-05:
    keep for now, minimize later, with db-core#42 as the model). The
