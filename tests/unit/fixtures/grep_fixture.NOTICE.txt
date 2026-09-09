@@ -1,0 +1,13 @@
+grep_fixture.db — fixture for tests/unit/grep_test.rs (issue #45, spec
+014-grep).
+
+This fixture was authored for this repository (via the `sqlite3` shell;
+one table `items(name TEXT, qty INTEGER, price REAL, note TEXT, blob_col
+BLOB)` covering text/integer/real/NULL/BLOB columns) — it is not a copy of
+any fixture from eirtools/sqlgrep.
+
+eirtools/sqlgrep (https://github.com/eirtools/sqlgrep, Apache-2.0) is the
+prior art whose *behavior* (output line format, flag shapes) `sqlite-rs
+grep` ports; its own test fixtures were not vendored here. See
+`.openspec/specs/014-grep/spec.md`'s "Descoped" section for what this port
+does and does not claim about fixture/output parity.

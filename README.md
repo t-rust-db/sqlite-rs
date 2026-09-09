@@ -137,7 +137,38 @@ target/release/sqlite-rs dump mydb.db
 
 ### trigrep (moved)
 
-The serverless trigram grep that lived here as `sqlgrep` (2026-09-08/09) is now its own repository, [t-rust-db/trigrep](https://github.com/t-rust-db/trigrep) (binary `tg`), depending on `db-storage` directly. Moving it returns this crate to zero third-party runtime dependencies with no exception clause (ADR-0043 superseded). A grep *inside* SQLite files, the [eirtools/sqlgrep](https://github.com/eirtools/sqlgrep) feature, is planned as `sqlite-rs grep`.
+The serverless trigram grep that lived here as `sqlgrep` (2026-09-08/09) is now its own repository, [t-rust-db/trigrep](https://github.com/t-rust-db/trigrep) (binary `tg`), depending on `db-storage` directly. Moving it returns this crate to zero third-party runtime dependencies with no exception clause (ADR-0043 superseded). A grep *inside* SQLite files, the [eirtools/sqlgrep](https://github.com/eirtools/sqlgrep) feature, is implemented as `sqlite-rs grep` below.
+
+### grep
+
+`sqlite-rs grep` searches for a pattern *inside* one or more SQLite database
+files — every table's every row/column, matched against the cell's text
+form — porting the behavior (not the code) of
+[eirtools/sqlgrep](https://github.com/eirtools/sqlgrep) (Apache-2.0). This is
+a subcommand of the existing `sqlite-rs` binary, not a separate tool; its
+`regex` dependency is CLI-only, gated behind the same `cli` feature `db-cli`
+already uses ([ADR-0044](.openspec/adr/0044-grep-regex-cli-only-dependency.md)).
+Full requirements and descoped items: [`.openspec/specs/014-grep/spec.md`](.openspec/specs/014-grep/spec.md).
+
+```bash
+# Every table, default regex matching
+target/release/sqlite-rs grep 'error' logs.db
+
+# Fixed-string, case-insensitive, across multiple files (filename-prefixed)
+target/release/sqlite-rs grep -F -i 'timeout' a.db b.db
+
+# Also search CREATE TABLE/INDEX DDL, and opt in to matching BLOB cells
+target/release/sqlite-rs grep --schema --blob=hex 'DEADBEEF' cache.db
+```
+
+Output is one line per matching cell:
+`[<file>::]<table>::<row index>::<column>::<value>` (row index zero-based),
+with exit codes 0 (matched), 1 (no match), 2 (usage/open error) — matching
+`grep(1)`. NULL cells never match (no `CAST(... AS TEXT)` form to match
+against); BLOB cells are skipped unless `--blob=text|hex` is given.
+Descoped in this first cut: `sqlite://` URL inputs and explicit
+`SELECT`/stdin/`@file` query sources — only the default "every table in
+`sqlite_master`" scan is implemented (spec 014-grep's "Descoped" section).
 
 ### Documentation
 

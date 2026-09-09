@@ -6,6 +6,30 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-09-09
+
+### Added
+
+- **`sqlite-rs grep` subcommand** (#45, spec 014-grep): searches every
+  table's every row/column of one or more SQLite database files for a
+  pattern — the job [eirtools/sqlgrep](https://github.com/eirtools/sqlgrep)
+  did, ported as behavior (output line format, flag shapes), not vendored
+  code. Regex by default, `-F`/`--fixed-strings`, `-i`/`--ignore-case`,
+  `--blob=skip|text|hex` (default `skip`), `--schema` (also greps
+  `sqlite_master.sql`), `-H`/`-h` filename prefixing. Output:
+  `[<file>::]<table>::<row index>::<column>::<value>`, exit codes 0/1/2 like
+  `grep(1)`. Streams rows through the existing `TableCursor`
+  table-by-table (never materializes a whole table), and reuses
+  `sqlite_rs::dump::open`'s read-only, WAL-aware open path — a WAL-mode
+  database's uncommitted-to-main-file rows are visible (spec 007
+  Requirement 3). `regex` is a new optional dependency, folded into the
+  existing `cli` feature exactly like `db-cli` (ADR-0044, amends ADR-0040
+  decision 2); `default-features = false` library consumers still see no
+  `regex` in their dependency tree. Descoped in this first cut: `sqlite://`
+  URL inputs, explicit `SELECT`/stdin/`@file` query sources (only the
+  default whole-schema scan is implemented) — see spec 014-grep's
+  "Descoped" section.
+
 ## [0.23.0] - 2026-09-09
 
 ### Removed
