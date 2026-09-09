@@ -21,7 +21,7 @@
 use std::fs::OpenOptions;
 use std::io::{BufRead, Write};
 
-use db_storage::row::vfs::fcntl::{fcntl_call, flock, off_t, FcntlArg, F_RDLCK, F_WRLCK};
+use db_core::storage::row::vfs::fcntl::{fcntl_call, flock, off_t, FcntlArg, F_RDLCK, F_WRLCK};
 
 /// `SEEK_SET`: shares the same numeric value (0) on macOS and Linux.
 const SEEK_SET: i16 = 0;

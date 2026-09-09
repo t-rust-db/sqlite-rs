@@ -54,54 +54,54 @@ pub mod parser {
     }
 }
 
-/// Virtual filesystem layer — re-exported from `db_storage::row::vfs`
+/// Virtual filesystem layer — re-exported from `db_core::storage::row::vfs`
 /// (t-rust-db/sqlite-rs#2). The private copy this crate used to carry was
 /// the source that module was extracted from (db-core ADR 0006); every
 /// `crate::vfs::*` / `sqlite_rs::vfs::*` path keeps resolving unchanged.
 pub mod vfs {
-    pub use db_storage::row::vfs::*;
+    pub use db_core::storage::row::vfs::*;
 }
 
 /// Pager (page cache, rollback journal, WAL, hot-journal recovery) —
-/// re-exported from `db_storage::row::pager` (t-rust-db/sqlite-rs#3), same
+/// re-exported from `db_core::storage::row::pager` (t-rust-db/sqlite-rs#3), same
 /// arrangement as [`vfs`].
 pub mod pager {
-    pub use db_storage::row::pager::*;
+    pub use db_core::storage::row::pager::*;
 }
 
-/// Database header parsing — re-exported from `db_storage::row::header`
+/// Database header parsing — re-exported from `db_core::storage::row::header`
 /// (t-rust-db/sqlite-rs#5).
 pub mod header {
-    pub use db_storage::row::header::*;
+    pub use db_core::storage::row::header::*;
 }
 
 /// Record (varint / serial-type / row) encoding and decoding, `Value` and
-/// `Collation` — re-exported from `db_storage::row::record`
+/// `Collation` — re-exported from `db_core::storage::row::record`
 /// (t-rust-db/sqlite-rs#4).
 pub mod record {
-    pub use db_storage::row::record::*;
+    pub use db_core::storage::row::record::*;
 }
 
 /// Table and index b-tree read/write paths and `sqlite_master` helpers —
-/// re-exported from `db_storage::row::btree` (t-rust-db/sqlite-rs#6).
+/// re-exported from `db_core::storage::row::btree` (t-rust-db/sqlite-rs#6).
 pub mod btree {
-    pub use db_storage::row::btree::*;
+    pub use db_core::storage::row::btree::*;
 }
 
 /// DDL reader (`sqlite_master` → `TableSchema`/`IndexSchema`) — re-exported
-/// from `db_storage::row::schema` (t-rust-db/sqlite-rs#7).
+/// from `db_core::storage::row::schema` (t-rust-db/sqlite-rs#7).
 pub mod schema {
-    pub use db_storage::row::schema::*;
+    pub use db_core::storage::row::schema::*;
 }
 
 /// Shell-parity value rendering — re-exported from
-/// `db_storage::row::format` (t-rust-db/sqlite-rs#5).
+/// `db_core::storage::row::format` (t-rust-db/sqlite-rs#5).
 pub mod format {
-    pub use db_storage::row::format::*;
+    pub use db_core::storage::row::format::*;
 }
 
 /// `PRAGMA integrity_check` / `quick_check` — re-exported from
-/// `db_storage::row::integrity` (t-rust-db/sqlite-rs#5).
+/// `db_core::storage::row::integrity` (t-rust-db/sqlite-rs#5).
 pub mod integrity {
-    pub use db_storage::row::integrity::*;
+    pub use db_core::storage::row::integrity::*;
 }

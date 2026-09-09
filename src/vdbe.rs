@@ -20,6 +20,7 @@
 
 pub mod adapter;
 
+pub use db_core::value::{compare_text, Collation};
 pub use db_core::vm::row::coerce::{
     cast_to_integer, checked_add, checked_div, checked_mul, checked_rem, checked_sub,
     coerce_text_to_numeric,
@@ -27,10 +28,10 @@ pub use db_core::vm::row::coerce::{
 pub use db_core::vm::row::functions::{call as call_function, like_match};
 pub use db_core::vm::row::logic::{and, is, is_not, not, or, sql_eq, sql_lt};
 pub use db_core::vm::row::{
-    affinity_of, apply_affinity, cast_to, compare, compare_text, comparison_affinity, explain,
-    Affinity, AnalyzeIndexTarget, AnalyzeTarget, Collation, ExecError, ExplainRow, FunctionError,
-    GroupKeyColumn, Instruction, Opcode, Program, SortKeyColumn, Step, Vm, JOURNAL_MODE_DELETE,
-    JOURNAL_MODE_WAL, P4, SYNCHRONOUS_FULL, SYNCHRONOUS_NORMAL, SYNCHRONOUS_OFF, SYNCHRONOUS_QUERY,
+    affinity_of, apply_affinity, cast_to, compare, comparison_affinity, explain, Affinity,
+    AnalyzeIndexTarget, AnalyzeTarget, ExecError, ExplainRow, FunctionError, GroupKeyColumn,
+    Instruction, Opcode, Program, SortKeyColumn, Step, Vm, JOURNAL_MODE_DELETE, JOURNAL_MODE_WAL,
+    P4, SYNCHRONOUS_FULL, SYNCHRONOUS_NORMAL, SYNCHRONOUS_OFF, SYNCHRONOUS_QUERY,
     TRANSACTION_MODE_DEFERRED, TRANSACTION_MODE_EXCLUSIVE, TRANSACTION_MODE_IMMEDIATE,
 };
 
