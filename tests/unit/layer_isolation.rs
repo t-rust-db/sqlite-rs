@@ -1,23 +1,23 @@
 // Copyright 2026 Schuberg Philis
 // SPDX-License-Identifier: Apache-2.0
 //! Enforces spec 001-architecture Requirement 1 (Layer Isolation), both
-//! scenarios, after the Tier 0 core moved to `db_storage::row`
+//! scenarios, after the Tier 0 core moved to `db_core::storage::row`
 //! (t-rust-db/sqlite-rs#2–#7):
 //! - "B-tree does not know SQL": Tier 0 (vfs, pager, header, record,
 //!   btree, schema) now lives in a separate crate that cannot depend on
 //!   this one, so the crate graph enforces the original claim. What this
 //!   crate still has to guarantee is a single entry point: storage is
 //!   reached only through the `src/lib.rs` re-export facade
-//!   (`crate::btree`, `crate::pager`, …), never by naming `db_storage::`
+//!   (`crate::btree`, `crate::pager`, …), never by naming `db_core::storage::`
 //!   directly elsewhere in `src/` — otherwise the facade stops being the
 //!   one place a future storage swap has to touch.
 //! - "VDBE does not know file format": vdbe/codegen must reach storage
 //!   only through the B-tree API (and the `PageSource` boundary of
 //!   ADR-0013), never the pager directly — whether spelled `crate::pager`
-//!   or `db_storage::row::pager`.
+//!   or `db_core::storage::row::pager`.
 //!
 //! Without this, both boundaries hold only by convention — a stray
-//! `use db_storage::row::btree` in `vdbe/cursor.rs`, or a stray
+//! `use db_core::storage::row::btree` in `vdbe/cursor.rs`, or a stray
 //! `use crate::pager` in `vdbe/exec.rs`, would compile silently.
 
 #![allow(
@@ -30,15 +30,15 @@
 
 use std::path::{Path, PathBuf};
 
-/// The one file allowed to name `db_storage::` — the re-export facade.
+/// The one file allowed to name `db_core::storage::` — the re-export facade.
 const STORAGE_FACADE: &str = "src/lib.rs";
-const FACADE_BYPASS: &[&str] = &["db_storage::"];
+const FACADE_BYPASS: &[&str] = &["db_core::storage::"];
 
 const TIER1_2_ROOTS: &[&str] = &["src/vdbe.rs", "src/codegen.rs"];
 
 /// `crate::vfs::PageSource` is the sanctioned exception (ADR-0013's
 /// `Rc<dyn PageSource>` boundary), so only the pager is forbidden here.
-const STORAGE_BYPASS: &[&str] = &["use crate::pager", "db_storage::row::pager"];
+const STORAGE_BYPASS: &[&str] = &["use crate::pager", "db_core::storage::row::pager"];
 
 fn collect_rs_files(root: &Path, out: &mut Vec<PathBuf>) {
     if root.is_file() {
@@ -109,7 +109,7 @@ fn storage_is_reached_only_through_the_lib_rs_facade() {
         "Tier 0 layer isolation violated (spec 001-architecture Requirement 1, \
          \"B-tree does not know SQL\") — storage types must come through the \
          `src/lib.rs` re-export facade (`crate::btree`, `crate::pager`, …), \
-         never `db_storage::` directly:
+         never `db_core::storage::` directly:
 {}",
         violations.join(
             "

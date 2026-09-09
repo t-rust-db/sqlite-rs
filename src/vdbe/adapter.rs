@@ -14,11 +14,12 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::rc::Rc;
 
+use db_core::value::Collation;
 use db_core::vm::row::cursor_factory::{CursorFactory, CursorFactoryError};
 use db_core::vm::row::schema_storage::{SchemaStorage, SchemaStorageError};
 use db_core::vm::row::transaction::{Transaction, TransactionError};
 use db_core::vm::row::{
-    compare, AnalyzeTarget, Collation, Cursor, SortKeyColumn, JOURNAL_MODE_WAL, SYNCHRONOUS_NORMAL,
+    compare, AnalyzeTarget, Cursor, SortKeyColumn, JOURNAL_MODE_WAL, SYNCHRONOUS_NORMAL,
     SYNCHRONOUS_OFF,
 };
 
