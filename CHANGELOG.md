@@ -6,6 +6,21 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-09-09
+
+### Added
+
+- **`sqlgrep` binary** (#34, ADR-0043, spec 013): serverless trigram-indexed
+  grep. One SQLite-format cache file per canonicalized root under the XDG
+  cache dir (`$SQLGREP_CACHE_DIR` overrides), written through db-storage's
+  b-tree/pager layer with no SQL; incremental update in one journaled
+  transaction; `.gitignore` honored via `git ls-files`; regex narrowing by
+  required literal trigrams; `index`, `cache-path`, `--rebuild`, `-i`.
+  New optional deps `regex`, `regex-syntax`, `dirs` behind the default-on
+  `sqlgrep` feature (`cargo vet` exemptions, SBOMs regenerated). Found a
+  db-storage v0.6.2 leaf split-by-count defect (t-rust-db/db-storage#31);
+  db-storage pinned to v0.6.3, which fixes it, with a regression test here.
+
 ### Removed
 
 - **JFrog/Artifactory private-registry artifacts** (ADR-0042, supersedes

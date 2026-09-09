@@ -1,6 +1,6 @@
 [package]
 name = "sqlite-rs"
-version = "0.20.1"
+version = "0.21.0"
 edition = "2021"
 publish = false
 license = "Apache-2.0"
@@ -14,7 +14,7 @@ categories = ["database", "database-implementations"]
 # First-party t-rust-db crates, pinned to release tags (ADR-0040). Exactly
 # the features this crate uses, nothing by default. Bumping a tag is a
 # reviewed dependency update: check-deny, cargo vet, sbom, full test run.
-db-storage = { version = "0.6.2", git = "https://github.com/t-rust-db/db-storage", tag = "v0.6.2", default-features = false, features = ["row"] }
+db-storage = { version = "0.6.3", git = "https://github.com/t-rust-db/db-storage", tag = "v0.6.3", default-features = false, features = ["row"] }
 # Parser (t-rust-db/sqlite-rs#17): db-core's parser::row is this crate's
 # own parser, ported; a strict superset until Lab271/sqlite-rs#701/#702
 # land (db-core ADR 0009). More db-core features follow with #18/#19.
@@ -23,11 +23,20 @@ db-core = { version = "0.71.1", git = "https://github.com/t-rust-db/db-core", ta
 # optional so library consumers with `default-features = false` never pull
 # it (or its libc/dirs closure) in.
 db-cli = { version = "0.4.1", git = "https://github.com/t-rust-db/db-cli", tag = "v0.4.1", optional = true }
+# `sqlgrep`-only (#34, ADR-0043): the regex engine plus its HIR (for
+# required-literal extraction) and the XDG cache-dir lookup. Optional so
+# `default-features = false` library consumers never see them; `dirs` is
+# the same crate/version db-cli already pulls in.
+regex = { version = "1", optional = true }
+regex-syntax = { version = "0.8", optional = true }
+dirs = { version = "5", optional = true }
 
 [features]
-default = ["cli"]
+default = ["cli", "sqlgrep"]
 # The `sqlite-rs` binary. Off => library only.
 cli = ["dep:db-cli"]
+# The `sqlgrep` binary (#34). Off => no regex/dirs in the closure.
+sqlgrep = ["dep:regex", "dep:regex-syntax", "dep:dirs"]
 
 # The CLI itself; auto-discovery would find it anyway, but the feature gate
 # needs an explicit entry.
@@ -35,6 +44,12 @@ cli = ["dep:db-cli"]
 name = "sqlite-rs"
 path = "src/bin/sqlite-rs/main.rs"
 required-features = ["cli"]
+
+# Serverless trigram grep over a per-root db-storage cache file (#34).
+[[bin]]
+name = "sqlgrep"
+path = "src/bin/sqlgrep/main.rs"
+required-features = ["sqlgrep"]
 
 # Test-only helper: a genuine second OS process for the cross-process
 # lock-contention tests (#66; now `tests/corpus/*_interop_test.rs` — the
@@ -125,6 +140,18 @@ path = "tests/unit/repl_dot_commands.rs"
 name = "unit_repl_history"
 path = "tests/unit/repl_history.rs"
 
+# `sqlgrep` (#34): spawn the binary via `CARGO_BIN_EXE_sqlgrep`, so both
+# need the `sqlgrep` feature (on by default) to have anything to run.
+[[test]]
+name = "unit_sqlgrep_cli"
+path = "tests/unit/sqlgrep_cli_test.rs"
+required-features = ["sqlgrep"]
+
+[[test]]
+name = "unit_sqlgrep_crash"
+path = "tests/unit/sqlgrep_crash_test.rs"
+required-features = ["sqlgrep"]
+
 [[test]]
 name = "extracted_sql_corpus"
 path = "tests/corpus/extracted_sql_test.rs"
@@ -201,7 +228,7 @@ path = "tests/proptest/btree_proptest.rs"
 # Same crate, plus its `test-support` feature (`btree::test_minimal_db`) for
 # this crate's own unit tests — feature unification keeps it out of release
 # builds (t-rust-db/db-storage#13).
-db-storage = { version = "0.6.2", git = "https://github.com/t-rust-db/db-storage", tag = "v0.6.2", default-features = false, features = ["row", "test-support"] }
+db-storage = { version = "0.6.3", git = "https://github.com/t-rust-db/db-storage", tag = "v0.6.3", default-features = false, features = ["row", "test-support"] }
 proptest = "1"
 
 # MD5 is part of the sqllogictest format itself (`"N values hashing to

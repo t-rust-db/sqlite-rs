@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-08T14:06:32.000000000Z",
+    "timestamp": "2026-09-08T20:16:55.000000000Z",
     "tools": [
       {
         "vendor": "sqlite-rs",
@@ -26,11 +26,24 @@
     "properties": [
       {
         "name": "sqlite-rs:generated-at-commit",
-        "value": "df298ca00f101a2f08debd66bf6d8fe716ccda5e"
+        "value": "48598926a02cdfeddd6ff98c4e788ad22738fb2c"
       }
     ]
   },
   "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/aho-corasick@1.1.5",
+      "name": "aho-corasick",
+      "version": "1.1.5",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "Unlicense OR MIT"
+        }
+      ],
+      "purl": "pkg:cargo/aho-corasick@1.1.5"
+    },
     {
       "type": "library",
       "bom-ref": "pkg:cargo/autocfg@1.5.1",
@@ -150,12 +163,12 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:cargo/db-storage@0.6.2",
+      "bom-ref": "pkg:cargo/db-storage@0.6.3",
       "name": "db-storage",
-      "version": "0.6.2",
+      "version": "0.6.3",
       "scope": "required",
       "licenses": [],
-      "purl": "pkg:cargo/db-storage@0.6.2"
+      "purl": "pkg:cargo/db-storage@0.6.3"
     },
     {
       "type": "library",
@@ -338,6 +351,19 @@
         }
       ],
       "purl": "pkg:cargo/md-5@0.10.6"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/memchr@2.8.3",
+      "name": "memchr",
+      "version": "2.8.3",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "Unlicense OR MIT"
+        }
+      ],
+      "purl": "pkg:cargo/memchr@2.8.3"
     },
     {
       "type": "library",
@@ -549,10 +575,36 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/regex@1.13.1",
+      "name": "regex",
+      "version": "1.13.1",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/regex@1.13.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:cargo/regex-automata@0.4.18",
+      "name": "regex-automata",
+      "version": "0.4.18",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/regex-automata@0.4.18"
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/regex-syntax@0.8.11",
       "name": "regex-syntax",
       "version": "0.8.11",
-      "scope": "optional",
+      "scope": "required",
       "licenses": [
         {
           "expression": "MIT OR Apache-2.0"
