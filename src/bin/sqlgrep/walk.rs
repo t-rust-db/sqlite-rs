@@ -40,7 +40,13 @@ fn git_ls_files(root: &Path) -> Option<Vec<String>> {
     let out = Command::new("git")
         .arg("-C")
         .arg(root)
-        .args(["ls-files", "-z", "--cached", "--others", "--exclude-standard"])
+        .args([
+            "ls-files",
+            "-z",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+        ])
         .output()
         .ok()?;
     if !out.status.success() {

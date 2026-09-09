@@ -265,7 +265,13 @@ pub fn update(cache: &mut Cache, root: &Path) -> Result<Stats> {
         if *existed {
             delete_row(&mut cache.pager, &header, cache.trigrams_root, *trigram)?;
         }
-        insert_row(&mut cache.pager, &header, cache.trigrams_root, *trigram, blob)?;
+        insert_row(
+            &mut cache.pager,
+            &header,
+            cache.trigrams_root,
+            *trigram,
+            blob,
+        )?;
     }
     stats.trigrams_rewritten = rewrites.len();
     cache.pager.flush()?;

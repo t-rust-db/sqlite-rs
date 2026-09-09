@@ -44,7 +44,9 @@ fn scratch() -> (PathBuf, PathBuf) {
     for i in 0..400u32 {
         let mut text = String::new();
         for j in 0..200u32 {
-            let tok = u64::from(i).wrapping_mul(1_000_003).wrapping_add(u64::from(j).wrapping_mul(7919));
+            let tok = u64::from(i)
+                .wrapping_mul(1_000_003)
+                .wrapping_add(u64::from(j).wrapping_mul(7919));
             text.push_str(&format!("{tok:x} "));
             if j % 8 == 7 {
                 text.push('\n');
@@ -82,7 +84,10 @@ fn recovered_file_count(path: &Path) -> i64 {
     assert_eq!(problems, ["ok"], "integrity_check after kill: {problems:?}");
     let mut cursor = TableCursor::new(&pager, &header, 1);
     let schemas = read_schema(&mut cursor, header.text_encoding).unwrap();
-    let files = schemas.iter().find(|s| s.name == "files").expect("files table");
+    let files = schemas
+        .iter()
+        .find(|s| s.name == "files")
+        .expect("files table");
     count_table_rows(&&pager, files.root_page).unwrap()
 }
 
@@ -114,7 +119,9 @@ fn kill_9_mid_index_always_leaves_a_consistent_cache() {
         let delay = full.mul_f64(frac);
         let mut child = indexer(&root, &cache).spawn().unwrap();
         std::thread::sleep(delay);
-        child.kill().unwrap_or_else(|e| panic!("iteration {i}: kill: {e}"));
+        child
+            .kill()
+            .unwrap_or_else(|e| panic!("iteration {i}: kill: {e}"));
         child.wait().ok();
 
         if !db.exists() {
@@ -133,12 +140,18 @@ fn kill_9_mid_index_always_leaves_a_consistent_cache() {
         );
         if journal.exists() {
             let size = std::fs::metadata(&journal).unwrap().len();
-            assert_eq!(size, 0, "iteration {i}: hot journal left behind after recovery");
+            assert_eq!(
+                size, 0,
+                "iteration {i}: hot journal left behind after recovery"
+            );
         }
 
         // And a survivor can finish the job on top of whatever was left.
         let status = indexer(&root, &cache).status().unwrap();
-        assert!(status.success(), "iteration {i}: re-index after kill failed");
+        assert!(
+            status.success(),
+            "iteration {i}: re-index after kill failed"
+        );
         assert_eq!(recovered_file_count(&db), total, "iteration {i}");
     }
     eprintln!("kills landed: {saw_none} before create, {saw_empty} before commit, {saw_full} after commit");

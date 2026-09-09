@@ -98,7 +98,11 @@ fn index_then_search_prints_file_line_matches_and_grep_exit_codes() {
     s.write("c.txt", "nothing\n");
 
     let out = s.run(&["index"]);
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert!(String::from_utf8_lossy(&out.stderr).contains("3 added"));
 
     let (code, stdout) = s.search("needle_one");
@@ -107,7 +111,10 @@ fn index_then_search_prints_file_line_matches_and_grep_exit_codes() {
     lines.sort();
     assert_eq!(lines.len(), 2);
     assert!(lines[0].ends_with("a.txt:2:needle_one here"), "{lines:?}");
-    assert!(lines[1].ends_with("sub/b.rs:1:fn needle_one() {}"), "{lines:?}");
+    assert!(
+        lines[1].ends_with("sub/b.rs:1:fn needle_one() {}"),
+        "{lines:?}"
+    );
 
     let (code, stdout) = s.search("zzz_absent_zzz");
     assert_eq!(code, 1);
@@ -172,7 +179,10 @@ fn incremental_update_touches_only_changed_files() {
     // A second pass with nothing changed writes nothing.
     let out = s.run(&["index"]);
     let report = String::from_utf8_lossy(&out.stderr);
-    assert!(report.contains("0 added, 0 changed, 0 removed, 3 unchanged"), "{report}");
+    assert!(
+        report.contains("0 added, 0 changed, 0 removed, 3 unchanged"),
+        "{report}"
+    );
     assert!(report.contains("(0 posting lists rewritten)"), "{report}");
 
     // Distinct content so the mtime/size check cannot be fooled.
@@ -182,7 +192,10 @@ fn incremental_update_touches_only_changed_files() {
     s.write("new.txt", "fresh_needle\n");
     let out = s.run(&["index"]);
     let report = String::from_utf8_lossy(&out.stderr);
-    assert!(report.contains("1 added, 1 changed, 1 removed, 1 unchanged"), "{report}");
+    assert!(
+        report.contains("1 added, 1 changed, 1 removed, 1 unchanged"),
+        "{report}"
+    );
 
     assert_eq!(s.search("after_needle").0, 0);
     assert_eq!(s.search("fresh_needle").0, 0);
@@ -236,7 +249,11 @@ fn gitignore_is_honored_inside_a_work_tree() {
             .args(args)
             .output()
             .expect("git present");
-        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
     };
     git(&["init", "-q"]);
     s.write(".gitignore", "ignored.txt\nbuild/\n");
@@ -290,11 +307,20 @@ fn mixed_size_posting_lists_split_correctly() {
     for i in 0..400u32 {
         let mut text = String::new();
         for j in 0..200u32 {
-            text.push_str(&format!("w{}x{}y{} ", i, j, i.wrapping_mul(7919).wrapping_add(j)));
+            text.push_str(&format!(
+                "w{}x{}y{} ",
+                i,
+                j,
+                i.wrapping_mul(7919).wrapping_add(j)
+            ));
         }
         s.write(&format!("f{i}.txt"), &text);
     }
     let out = s.run(&["index"]);
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert_cache_healthy(&s.cache_path());
 }
