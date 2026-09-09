@@ -74,13 +74,13 @@ dependencies = [
 
 [[package]]
 name = "db-core"
-version = "0.71.1"
-source = "git+https://github.com/t-rust-db/db-core?tag=v0.71.1#f45e8a2839f9cfbdaaeed1dcb78658764610f47b"
+version = "0.76.9"
+source = "git+https://github.com/t-rust-db/db-core?tag=v0.76.9#89eaf11d9ed13e67545204cab3e63ea4adee7048"
 
 [[package]]
 name = "db-storage"
-version = "0.6.3"
-source = "git+https://github.com/t-rust-db/db-storage?tag=v0.6.3#d09fab23700d84eb16a379198f3258e28f32efa4"
+version = "0.6.5"
+source = "git+https://github.com/t-rust-db/db-storage?rev=bafd5fa59e2f7554b1ead9cf378cad211501d433#bafd5fa59e2f7554b1ead9cf378cad211501d433"
 dependencies = [
  "db-core",
  "memmap2",
@@ -636,18 +636,18 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "zerocopy"
-version = "0.8.56"
+version = "0.8.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "556764e583adb45a9f8d413c2a147fa7e8d821e48e12b14fd560b607998b75eb"
+checksum = "d35102a9f36d089ccae9e4c6802bc118be4487b80aaffc0ab4e0cf5ce92d2873"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.56"
+version = "0.8.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2ab42fc20575779bd240faa45f94a74256f755c0fa9e89f0ede20d91d0cdfc1"
+checksum = "146c01f5ab44258da43cf276c74a2763db2ff3969c9c652c3f2de07041d0b2bc"
 dependencies = [
  "proc-macro2",
  "quote",
