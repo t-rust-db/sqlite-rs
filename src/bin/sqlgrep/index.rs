@@ -171,10 +171,21 @@ pub fn update(cache: &mut Cache, root: &Path) -> Result<Stats> {
     let mut seen: HashMap<&str, ()> = HashMap::new();
 
     let present = crate::walk::list_files(root)?;
-    for rel in &present {
-        let full = root.join(rel);
-        let Ok(meta) = std::fs::metadata(&full) else {
-            continue; // listed (e.g. by git) but gone: same as absent
+    for entry in present {
+        let rel = entry.rel;
+        let full = root.join(&rel);
+        // Reuse the walk's own `stat` when it already did one (the
+        // non-git fallback) instead of paying for a second one here
+        // (#38); a git-sourced entry has none yet, so this is the only
+        // stat that path pays.
+        let meta = match entry.metadata {
+            Some(m) => m,
+            None => {
+                let Ok(m) = std::fs::metadata(&full) else {
+                    continue; // listed (e.g. by git) but gone: same as absent
+                };
+                m
+            }
         };
         if !meta.is_file() {
             continue;

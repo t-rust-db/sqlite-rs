@@ -10,10 +10,12 @@ date: 2026-09-08
 A second binary in this crate (#34, ADR-0043): trigram-indexed grep over a
 tree, where the index is a real SQLite-format file per root, maintained
 through `db-storage`'s b-tree/pager layer with no SQL, no daemon and no
-format of its own. Every invocation opens the cache, updates what changed,
-queries, and exits.
+format of its own. Every invocation opens the cache (building it on a
+root's first-ever search) and exits; a plain search after that reuses the
+cache exactly as it stands, and only `sqlgrep index` or `-u`/`--update`
+(#38) explicitly brings it up to date with the filesystem.
 
-Refs: #34 (Requirements 1-6); ADR-0043.
+Refs: #34 (Requirements 1-6); #38 (Requirement 7); ADR-0043.
 
 ## Tier Position
 
@@ -175,3 +177,37 @@ be neither followed nor indexed.
 - THEN exactly one hit, from the text file
 
 **Tests:** `tests/unit/sqlgrep_cli_test.rs::binary_files_and_symlinks_are_skipped`
+
+### Requirement 7: A plain search skips the freshness check once a cache exists [MUST]
+
+Unless the cache for a root does not exist yet, `sqlgrep` MUST NOT walk
+the filesystem, `stat`, hash, or write to the cache before a search — it
+searches the cache exactly as it stands. The root's first-ever search
+MUST still build the cache (there is nothing to search otherwise).
+`-u`/`--update` MUST force the freshness check even when a cache already
+exists, trading latency for currency; `sqlgrep index` MUST always refresh
+regardless of this default, since bringing the cache up to date is its
+entire purpose. A file present in the cache and unchanged on disk MUST
+still be found normally, since the match itself always reads the real
+file.
+
+**Implementation:** `src/bin/sqlgrep/main.rs::open_and_update`
+
+#### Scenario: A file added after the last build is invisible by default, unchanged files are not
+
+- GIVEN a root indexed with one file, then a second file added afterward
+  with the same searched content
+- WHEN searching with no flags
+- THEN only the originally indexed file is reported, the cache file's own
+  mtime is unchanged by the search, and `-u`/`--update` catches up to
+  report both
+
+**Tests:** `tests/unit/sqlgrep_cli_test.rs::default_search_skips_the_freshness_check_once_a_cache_exists`
+
+#### Scenario: The very first search still builds the cache
+
+- GIVEN a fresh root with one file, never indexed
+- WHEN a plain search runs with no cache yet present
+- THEN it finds the match and the cache file exists afterwards
+
+**Tests:** `tests/unit/sqlgrep_cli_test.rs::first_ever_search_still_builds_the_cache_even_by_default`

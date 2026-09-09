@@ -80,8 +80,13 @@ pub fn cache_path(root: &Path) -> Result<PathBuf> {
 }
 
 /// Opens (creating and bootstrapping if needed) the cache for `root`.
-/// `rebuild` deletes any existing cache first.
-pub fn open(root: &Path, rebuild: bool) -> Result<Cache> {
+/// `rebuild` deletes any existing cache first. Returns whether this call
+/// just bootstrapped an empty schema — i.e. there was nothing to search
+/// yet — which callers use to decide whether a scan is unavoidable (#38:
+/// the default search path only ever scans when there is nothing cached
+/// at all; an already-populated cache is searched as-is unless the
+/// caller explicitly asks for a refresh).
+pub fn open(root: &Path, rebuild: bool) -> Result<(Cache, bool)> {
     let path = cache_path(root)?;
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
@@ -100,20 +105,25 @@ pub fn open(root: &Path, rebuild: bool) -> Result<Cache> {
 
     let (header, mut pager) = dump::open(&UnixVfs, &path)?;
     let roots = read_roots(&pager, &header)?;
-    let (files_root, trigrams_root) = match roots {
-        Some(r) => r,
+    let (files_root, trigrams_root, fresh) = match roots {
+        Some((f, t)) => (f, t, false),
         None => {
             bootstrap(&mut pager, &header, root)?;
-            read_roots(&pager, &header)?.ok_or("cache bootstrap left no schema behind")?
+            let (f, t) =
+                read_roots(&pager, &header)?.ok_or("cache bootstrap left no schema behind")?;
+            (f, t, true)
         }
     };
-    Ok(Cache {
-        path,
-        header,
-        pager,
-        files_root,
-        trigrams_root,
-    })
+    Ok((
+        Cache {
+            path,
+            header,
+            pager,
+            files_root,
+            trigrams_root,
+        },
+        fresh,
+    ))
 }
 
 fn remove_if_exists(path: &Path) -> Result<()> {
