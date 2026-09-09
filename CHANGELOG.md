@@ -8,14 +8,18 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 ### Added
 
-- **`sqlgrep -n`/`--no-update`** (#38): skips the freshness check entirely,
-  trading "may miss an edit since the last index/search" for latency close
-  to the trigram lookup and regex alone — measured 1.6 s -> 12.5 ms on a
-  1 GB, 56k-file tree. The non-git fallback walk also now reuses the
-  `stat` it already performs while listing files instead of `index`
-  re-`stat`ing every candidate, cutting a first build's syscalls roughly
-  in half outside a git work tree (measured ~217 s -> ~180 s on the same
-  tree). Spec 013 Requirement 7.
+- **`sqlgrep` searches are fast by default** (#38): a plain search no
+  longer re-scans the filesystem once a cache already exists for the
+  root — it searches the cache exactly as it stands, at the cost that an
+  edit since the last build is invisible until `sqlgrep index` or the new
+  `-u`/`--update` (an explicit, slower refresh-then-search) runs. The
+  root's first-ever search still builds the cache, since there is
+  nothing to search otherwise. Measured 1.6 s -> 12.5 ms on a 1 GB,
+  56k-file tree. The non-git fallback walk also now reuses the `stat` it
+  already performs while listing files instead of `index` re-`stat`ing
+  every candidate, cutting a first build's syscalls roughly in half
+  outside a git work tree (measured ~217 s -> ~180 s on the same tree).
+  Spec 013 Requirement 7.
 
 ## [0.21.0] - 2026-09-09
 

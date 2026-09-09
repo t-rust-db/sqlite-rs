@@ -9,17 +9,20 @@
 //! own VDBE sits on.
 //!
 //! ```text
-//! sqlgrep [-i] [--rebuild] [-n] <pattern> [path]   search (indexes first, unless -n)
+//! sqlgrep [-i] [--rebuild] [-u] <pattern> [path]   search (fast: as the cache stands)
 //! sqlgrep index [--rebuild] [path]                 build/update the cache only
 //! sqlgrep cache-path [path]                        print where the cache file is
 //! ```
 //!
-//! `-n`/`--no-update` (#38) skips the freshness check entirely: on a
-//! large, mostly-static tree that check (a `stat` per indexed file) can
-//! dominate a query's latency far more than the search itself, so a
-//! caller that knows the tree hasn't changed since the last `index` can
-//! ask to search the cache exactly as it stands — at the cost that any
-//! edit since then is invisible until a plain `index`/search runs.
+//! A plain search never re-scans the filesystem when a cache already
+//! exists for the root (#38): on a large, mostly-static tree, the
+//! freshness check that used to run before every search (a `stat` per
+//! indexed file) can dominate a query's latency far more than the
+//! search itself. The very first search against a root with no cache
+//! yet still builds one — there is nothing to search otherwise — but
+//! every search after that is fast by default, at the cost that an edit
+//! made since the last `index`/build is invisible until `sqlgrep index`
+//! or `-u`/`--update` (an explicit, slower refresh-then-search) runs.
 //!
 //! Exit codes follow grep: 0 = matches, 1 = none, 2 = error.
 
@@ -40,7 +43,7 @@ use regex::bytes::RegexBuilder;
 struct Args {
     rebuild: bool,
     case_insensitive: bool,
-    no_update: bool,
+    update: bool,
     positional: Vec<String>,
 }
 
@@ -48,7 +51,7 @@ fn parse_args() -> Result<Args, String> {
     let mut args = Args {
         rebuild: false,
         case_insensitive: false,
-        no_update: false,
+        update: false,
         positional: Vec::new(),
     };
     let mut literal_rest = false;
@@ -58,7 +61,7 @@ fn parse_args() -> Result<Args, String> {
             "--" => literal_rest = true,
             "--rebuild" => args.rebuild = true,
             "-i" | "--ignore-case" => args.case_insensitive = true,
-            "-n" | "--no-update" => args.no_update = true,
+            "-u" | "--update" => args.update = true,
             "-h" | "--help" => return Err(String::new()),
             s if s.starts_with('-') && s.len() > 1 => return Err(format!("unknown flag {s}")),
             _ => args.positional.push(a),
@@ -69,7 +72,7 @@ fn parse_args() -> Result<Args, String> {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: sqlgrep [-i] [--rebuild] [-n] <pattern> [path]\n       \
+        "usage: sqlgrep [-i] [--rebuild] [-u] <pattern> [path]\n       \
          sqlgrep index [--rebuild] [path]\n       \
          sqlgrep cache-path [path]"
     );
@@ -129,8 +132,12 @@ fn run_index(args: &Args) -> ExitCode {
         Ok(r) => r,
         Err(e) => return fail(&e),
     };
-    match open_and_update(&root, args.rebuild, args.no_update) {
-        Ok((cache, stats)) => {
+    let (mut cache, _) = match cache::open(&root, args.rebuild) {
+        Ok(v) => v,
+        Err(e) => return fail(&e),
+    };
+    match index::update(&mut cache, &root) {
+        Ok(stats) => {
             eprintln!(
                 "{}: {} added, {} changed, {} removed, {} unchanged ({} posting lists rewritten)",
                 cache.path.display(),
@@ -146,18 +153,17 @@ fn run_index(args: &Args) -> ExitCode {
     }
 }
 
-fn open_and_update(
-    root: &Path,
-    rebuild: bool,
-    no_update: bool,
-) -> cache::Result<(cache::Cache, index::Stats)> {
-    let mut cache = cache::open(root, rebuild)?;
-    let stats = if no_update {
-        index::Stats::default()
-    } else {
-        index::update(&mut cache, root)?
-    };
-    Ok((cache, stats))
+/// Opens the cache and, unless it was already populated and the caller
+/// didn't ask for a refresh, brings it up to date. `force_update` is
+/// `-u`/`--update`: a cache that already exists is otherwise searched
+/// exactly as it stands (#38) — a freshly bootstrapped one always gets
+/// its first scan, since there would be nothing to search otherwise.
+fn open_and_update(root: &Path, rebuild: bool, force_update: bool) -> cache::Result<cache::Cache> {
+    let (mut cache, fresh) = cache::open(root, rebuild)?;
+    if fresh || force_update {
+        index::update(&mut cache, root)?;
+    }
+    Ok(cache)
 }
 
 fn run_search(args: &Args) -> ExitCode {
@@ -182,7 +188,7 @@ fn run_search(args: &Args) -> ExitCode {
         Ok(t) => t,
         Err(e) => return fail(&e),
     };
-    let (cache, _) = match open_and_update(&root, args.rebuild, args.no_update) {
+    let cache = match open_and_update(&root, args.rebuild, args.update) {
         Ok(v) => v,
         Err(e) => return fail(&e),
     };

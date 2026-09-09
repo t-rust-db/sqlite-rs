@@ -307,15 +307,15 @@ fn one_cache_file_per_canonical_root() {
     assert!(path_for("a").starts_with(s.cache_dir.to_str().unwrap()));
 }
 
-/// #38: `-n`/`--no-update` must skip the freshness check entirely — a
-/// file added after the last `index` stays invisible (its id was never
-/// assigned, so it can never be a trigram candidate) until a normal run
-/// happens, and no cache write occurs in between. Search always reads
-/// the *real* file for the actual match, though: an existing, unchanged
-/// file is found by `-n` exactly as it would be without it.
+/// #38: once a cache exists, a plain search never re-scans the
+/// filesystem — a file added after the last `index` (or after the cache
+/// was built by an earlier search) stays invisible, and no cache write
+/// occurs, until `-u`/`--update` or `sqlgrep index` explicitly refreshes
+/// it. Search always reads the *real* file for the actual match, so an
+/// existing, unchanged file is still found normally either way.
 #[test]
-fn no_update_flag_searches_the_cache_as_is() {
-    let s = scratch("no_update");
+fn default_search_skips_the_freshness_check_once_a_cache_exists() {
+    let s = scratch("fast_default");
     s.write("a.txt", "steady_needle\n");
     s.run(&["index"]);
     let before = std::fs::metadata(s.cache_path())
@@ -323,11 +323,11 @@ fn no_update_flag_searches_the_cache_as_is() {
         .modified()
         .unwrap();
 
-    // A brand-new file with the same needle: never indexed, so -n must
-    // not see it even though its content matches.
+    // A brand-new file with the same needle: never indexed, so a plain
+    // search must not see it even though its content matches.
     s.write("b.txt", "steady_needle too\n");
 
-    let (code, stdout) = s.search_args(&["-n"], "steady_needle");
+    let (code, stdout) = s.search("steady_needle");
     assert_eq!(code, 0, "{stdout}");
     assert_eq!(
         stdout.lines().count(),
@@ -340,37 +340,28 @@ fn no_update_flag_searches_the_cache_as_is() {
         .unwrap()
         .modified()
         .unwrap();
-    assert_eq!(before, after, "-n must not write to the cache");
+    assert_eq!(
+        before, after,
+        "a plain search over an existing cache must not write to it"
+    );
 
-    // A plain search (no -n) catches up as normal.
-    let (code, stdout) = s.search("steady_needle");
+    // `-u`/`--update` forces the refresh and catches up.
+    let (code, stdout) = s.search_args(&["-u"], "steady_needle");
     assert_eq!(code, 0, "{stdout}");
     assert_eq!(stdout.lines().count(), 2, "{stdout}");
 }
 
-/// #38: `--no-update` combined with `index` also stays a pure read —
-/// verifies the flag has one meaning everywhere it is accepted, not one
-/// behavior for `index` and another for a bare search.
+/// #38: the very first search against a root with no cache yet must
+/// still build one — there is nothing to search otherwise — even though
+/// every search after that is fast by default.
 #[test]
-fn no_update_on_index_makes_it_a_no_op() {
-    let s = scratch("no_update_index");
-    s.write("a.txt", "one\n");
-    let out = Command::new(SQLGREP)
-        .env("SQLGREP_CACHE_DIR", &s.cache_dir)
-        .args(["index", "--no-update"])
-        .arg(&s.root)
-        .output()
-        .unwrap();
-    assert!(out.status.success());
-    // The cache file is still created (opening always bootstraps an
-    // empty schema) but nothing was scanned or written into it.
+fn first_ever_search_still_builds_the_cache_even_by_default() {
+    let s = scratch("fast_default_first");
+    s.write("a.txt", "lazy_needle\n");
+    assert!(!s.cache_path().exists());
+    let (code, stdout) = s.search("lazy_needle");
+    assert_eq!(code, 0, "{stdout}");
     assert!(s.cache_path().exists());
-    assert_eq!(
-        s.search_args(&["-n"], "one").0,
-        1,
-        "nothing was ever indexed"
-    );
-    assert_cache_healthy(&s.cache_path());
 }
 
 /// #38: the non-git fallback walk collects metadata while listing files;
