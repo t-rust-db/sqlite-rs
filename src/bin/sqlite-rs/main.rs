@@ -36,7 +36,9 @@ mod tables;
 use std::path::Path;
 use std::process::ExitCode;
 
-use common::usage_error;
+use common::{usage, usage_error};
+
+const USAGE: &str = "[--version] [--help] <dump|export|query|grep|tables|exec|repl> <file>";
 
 fn main() -> ExitCode {
     let mut args = std::env::args().skip(1);
@@ -45,6 +47,7 @@ fn main() -> ExitCode {
             println!("sqlite-rs {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
+        Some("--help" | "-h") => usage(USAGE),
         Some("dump") => match args.next() {
             Some(path) => dump::run_dump(Path::new(&path)),
             None => usage_error("dump <file>"),
@@ -75,6 +78,6 @@ fn main() -> ExitCode {
         // invocation shape) still reports the usage error rather than
         // silently discarding it.
         Some(path) if args.next().is_none() => repl::run_repl(Path::new(&path)),
-        _ => usage_error("[--version] <dump|export|query|grep|tables|exec|repl> <file>"),
+        _ => usage_error(USAGE),
     }
 }

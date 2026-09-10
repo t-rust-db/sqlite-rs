@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: clean help test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures extract-sql-corpus test-corpus test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
+.PHONY: clean help smoke test test-lib test-doc test-proptest test-isolation loc lint hooks-install check-deny check-audit check-license-headers update vendor sbom sbom-dev supply-chain check-grammar-drift check-mvl-limit version version-pin check-mod-files verification verify fixtures extract-sql-corpus test-corpus test-sqllogictest test-tcl test-tiers test-spikes test-mcdc mcdc-obligations assurance check-assurance traceability coverage check-coverage mutants fuzz-btree fuzz-wal fuzz-decode-record fuzz-parse-select fuzz-scalar-functions fuzz-vdbe-exec fuzz-semantics-compare fuzz-smoke spike-001 spike-002 spike-003 spike-004 spike-005 spike-006 spike-007 spike-008 spike-009 opcodes silent-swallow docs docs-serve
 
 # Qualified-subset gate (issue #23). Boundary policy:
 #   - Tier 0 core (vfs, pager, header, record, btree, schema) now lives in
@@ -52,6 +52,12 @@ docs-serve: ## Serve the mdBook documentation site locally with live reload
 	mdbook serve docs --open
 
 # === Test ===
+
+smoke: ## Build the binary and run --help / --version (must exit 0; the cheapest "did the CLI survive" check)
+	cargo build --bin sqlite-rs
+	@./target/debug/sqlite-rs --help >/dev/null
+	@./target/debug/sqlite-rs --version
+	@echo "smoke: ok"
 
 test: ## Run every test except the corpus oracle diffs (unit, public-API, proptest, doctests — see test-corpus)
 	@# Build lock_probe helper binary first — cargo test doesn't build [[bin]] targets automatically

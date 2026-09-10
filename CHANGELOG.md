@@ -4,6 +4,12 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 **Versioning policy:** one minor version per completed plan phase — the version number tells the plan's story, sub-steps stay inside a phase. V1 (READ CORE) = 0.1.0 through 0.4.0. *(History note: internal iterations briefly numbered 0.4.0–0.6.0 were renumbered into the phase scheme on 14 Aug 2026, before any tag or publication of those versions existed.)*
 
+## [0.25.1] - 2026-09-09
+
+### Added
+
+- `--help`/`-h`: usage on stdout, exit 0 (was taken as a database path: `error: --help: file not found`, exit 1). `make smoke` builds the binary and runs `--help`/`--version`; `tests/unit/cli_smoke.rs` pins the contract.
+
 ## [Unreleased]
 
 ## [0.24.0] - 2026-09-09

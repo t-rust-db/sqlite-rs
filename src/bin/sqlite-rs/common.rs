@@ -23,6 +23,14 @@ pub fn usage_error(expected: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
+/// `--help`/`-h`: the same usage line as [`usage_error`]'s top-level
+/// form, but requested rather than provoked — stdout, exit 0 (what
+/// `sqlite3 --help` does, and what `make smoke` checks).
+pub fn usage(expected: &str) -> ExitCode {
+    println!("usage: sqlite-rs {expected}");
+    ExitCode::SUCCESS
+}
+
 pub fn fatal(path: &Path, e: &impl std::fmt::Display) -> ExitCode {
     eprintln!("error: {}: {e}", path.display());
     ExitCode::FAILURE
