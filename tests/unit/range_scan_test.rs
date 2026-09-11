@@ -192,7 +192,13 @@ fn between_with_no_matching_rows_is_empty() {
 fn in_list_matches_exactly_the_listed_values() {
     let (db, schema) = int_fixture("in_list_values");
     let program = compile(&schema, "SELECT id FROM t WHERE val IN (5, 20, 999)");
-    assert!(uses(&program, Opcode::SeekIndexEq));
+    // db-core's codegen::row now compiles an IN-list over an indexed
+    // column as one SeekIndexGE/IdxCompareGT bracket per value (the
+    // same strategy BETWEEN uses), not a dedicated SeekIndexEq per
+    // value -- verified equally correct below; this only checks that
+    // an index seek is used at all, not which exact opcode shape.
+    assert!(uses(&program, Opcode::SeekIndexGE));
+    assert!(uses(&program, Opcode::IdxCompareGT));
 
     let rows = run_rows(&db, &schema, "SELECT id FROM t WHERE val IN (5, 20, 999)");
     let mut ids: Vec<i64> = rows

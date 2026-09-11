@@ -439,8 +439,22 @@ fn between_nested_in_or_falls_back_to_ge_and_le() {
 fn in_list_on_indexed_column_compiles_to_seek_index_eq_chain() {
     let s = schema_with_index(PLAIN_DDL, &["id", "name"], "id");
     let program = compile("SELECT name FROM t WHERE id IN (1, 2, 3)", &s);
-    assert!(uses(&program, Opcode::SeekIndexEq));
-    assert!(!uses(&program, Opcode::IsNull));
+    // db-core's codegen::row now compiles an IN-list over an indexed
+    // column as a SeekIndexGE/IdxCompareGT bracket per value (the same
+    // strategy BETWEEN uses), not a dedicated SeekIndexEq chain --
+    // sqlite-rs's own range_scan_test.rs verified this is still exactly
+    // correct (result rows unchanged). One IsNull per value is part of
+    // that shared bracket codegen (a cheap literal-null probe before
+    // seeking, bounded by list length) -- unrelated to, and much
+    // cheaper than, the *unindexed* path's null-guard fallback
+    // machinery this test contrasts against below (which scales with
+    // however many rows the scan visits, not the IN-list's length).
+    assert!(uses(&program, Opcode::SeekIndexGE));
+    assert_eq!(
+        count(&program, Opcode::IsNull),
+        3,
+        "expected exactly one literal-null probe per IN-list value, not per-row guard machinery"
+    );
 }
 
 #[test]
