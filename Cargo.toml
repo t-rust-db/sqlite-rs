@@ -17,7 +17,7 @@ categories = ["database", "database-implementations"]
 # Parser (t-rust-db/sqlite-rs#17): db-core's parser::row is this crate's
 # own parser, ported; a strict superset until Lab271/sqlite-rs#701/#702
 # land (db-core ADR 0009). More db-core features follow with #18/#19.
-db-core = { version = "0.88.0", git = "https://github.com/t-rust-db/db-core", tag = "v0.88.0", default-features = false, features = ["parser-row", "vm-row", "codegen-row", "storage-row"] }
+db-core = { version = "0.88.1", git = "https://github.com/t-rust-db/db-core", tag = "v0.88.1", default-features = false, features = ["parser-row", "vm-row", "codegen-row", "storage-row"] }
 # CLI-only (readline, history, REPL loop, output modes — t-rust-db/sqlite-rs#14/#15):
 # optional so library consumers with `default-features = false` never pull
 # it (or its libc/dirs closure) in.
@@ -212,7 +212,7 @@ path = "tests/proptest/btree_proptest.rs"
 # Same crate, plus its `test-support` feature (`btree::test_minimal_db`) for
 # this crate's own unit tests — feature unification keeps it out of release
 # builds (t-rust-db/db-storage#13).
-db-core = { version = "0.88.0", git = "https://github.com/t-rust-db/db-core", tag = "v0.88.0", default-features = false, features = ["storage-test-support"] }
+db-core = { version = "0.88.1", git = "https://github.com/t-rust-db/db-core", tag = "v0.88.1", default-features = false, features = ["storage-test-support"] }
 proptest = "1"
 
 # MD5 is part of the sqllogictest format itself (`"N values hashing to
