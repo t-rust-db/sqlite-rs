@@ -1,7 +1,7 @@
 {
   "oracle_version": "3.53.4",
-  "query_count": 39,
-  "opcode_count": 68,
+  "query_count": 40,
+  "opcode_count": 73,
   "opcodes": {
     "Add": {
       "count": 1,
@@ -10,7 +10,7 @@
       "category": "arithmetic"
     },
     "AggFinal": {
-      "count": 2,
+      "count": 3,
       "p4_variants": [
         "count(0)",
         "sum(1)"
@@ -19,7 +19,7 @@
       "category": "function"
     },
     "AggStep": {
-      "count": 2,
+      "count": 3,
       "p4_variants": [
         "count(0)",
         "sum(1)"
@@ -66,10 +66,18 @@
       "category": "arithmetic"
     },
     "Column": {
-      "count": 130,
+      "count": 133,
       "p4_variants": [],
       "example_query": "SELECT * FROM products",
       "category": "cursor"
+    },
+    "Compare": {
+      "count": 1,
+      "p4_variants": [
+        "k(1,B)"
+      ],
+      "example_query": "SELECT qty, count(*) FROM products GROUP BY qty",
+      "category": "compare"
     },
     "Concat": {
       "count": 1,
@@ -78,7 +86,7 @@
       "category": "arithmetic"
     },
     "Copy": {
-      "count": 1,
+      "count": 2,
       "p4_variants": [],
       "example_query": "SELECT count(*), sum(price) FROM products",
       "category": "result"
@@ -136,8 +144,14 @@
       "example_query": "SELECT * FROM products WHERE price >= 10 AND qty < 50",
       "category": "compare"
     },
+    "Gosub": {
+      "count": 4,
+      "p4_variants": [],
+      "example_query": "SELECT qty, count(*) FROM products GROUP BY qty",
+      "category": "control"
+    },
     "Goto": {
-      "count": 41,
+      "count": 43,
       "p4_variants": [],
       "example_query": "SELECT * FROM products",
       "category": "control"
@@ -151,7 +165,7 @@
       "category": "compare"
     },
     "Halt": {
-      "count": 39,
+      "count": 40,
       "p4_variants": [],
       "example_query": "SELECT * FROM products",
       "category": "control"
@@ -173,6 +187,12 @@
       "example_query": "SELECT * FROM products ORDER BY price LIMIT 1",
       "category": "cursor"
     },
+    "If": {
+      "count": 1,
+      "p4_variants": [],
+      "example_query": "SELECT qty, count(*) FROM products GROUP BY qty",
+      "category": "control"
+    },
     "IfNot": {
       "count": 1,
       "p4_variants": [],
@@ -186,13 +206,13 @@
       "category": "control"
     },
     "IfPos": {
-      "count": 1,
+      "count": 3,
       "p4_variants": [],
       "example_query": "SELECT * FROM products LIMIT 2 OFFSET 1",
       "category": "control"
     },
     "Init": {
-      "count": 39,
+      "count": 40,
       "p4_variants": [],
       "example_query": "SELECT * FROM products",
       "category": "control"
@@ -208,7 +228,7 @@
       "category": "result"
     },
     "Integer": {
-      "count": 26,
+      "count": 30,
       "p4_variants": [],
       "example_query": "SELECT * FROM products WHERE price > 10",
       "category": "result"
@@ -218,6 +238,12 @@
       "p4_variants": [],
       "example_query": "SELECT * FROM products WHERE note IS NOT NULL",
       "category": "control"
+    },
+    "Jump": {
+      "count": 1,
+      "p4_variants": [],
+      "example_query": "SELECT qty, count(*) FROM products GROUP BY qty",
+      "category": "other"
     },
     "Last": {
       "count": 1,
@@ -242,11 +268,17 @@
       "category": "compare"
     },
     "MakeRecord": {
-      "count": 7,
+      "count": 8,
       "p4_variants": [
         "D"
       ],
       "example_query": "SELECT DISTINCT note FROM products",
+      "category": "result"
+    },
+    "Move": {
+      "count": 1,
+      "p4_variants": [],
+      "example_query": "SELECT qty, count(*) FROM products GROUP BY qty",
       "category": "result"
     },
     "Multiply": {
@@ -262,7 +294,7 @@
       "category": "control"
     },
     "Next": {
-      "count": 37,
+      "count": 38,
       "p4_variants": [],
       "example_query": "SELECT * FROM products",
       "category": "cursor"
@@ -280,7 +312,7 @@
       "category": "control"
     },
     "Null": {
-      "count": 2,
+      "count": 5,
       "p4_variants": [],
       "example_query": "SELECT CASE WHEN price > 100 THEN 1 END FROM products",
       "category": "result"
@@ -313,13 +345,13 @@
       "category": "cursor"
     },
     "OpenPseudo": {
-      "count": 2,
+      "count": 3,
       "p4_variants": [],
       "example_query": "SELECT * FROM products ORDER BY price",
       "category": "cursor"
     },
     "OpenRead": {
-      "count": 39,
+      "count": 40,
       "p4_variants": [
         "0",
         "2",
@@ -353,19 +385,19 @@
       "category": "arithmetic"
     },
     "ResultRow": {
-      "count": 39,
+      "count": 40,
       "p4_variants": [],
       "example_query": "SELECT * FROM products",
       "category": "result"
     },
     "Return": {
-      "count": 1,
+      "count": 5,
       "p4_variants": [],
       "example_query": "SELECT * FROM products WHERE id IN (1, 2, 3)",
       "category": "control"
     },
     "Rewind": {
-      "count": 36,
+      "count": 37,
       "p4_variants": [],
       "example_query": "SELECT * FROM products",
       "category": "cursor"
@@ -407,13 +439,13 @@
       "category": "sorter"
     },
     "SorterData": {
-      "count": 2,
+      "count": 3,
       "p4_variants": [],
       "example_query": "SELECT * FROM products ORDER BY price",
       "category": "sorter"
     },
     "SorterInsert": {
-      "count": 2,
+      "count": 3,
       "p4_variants": [
         "5"
       ],
@@ -421,13 +453,13 @@
       "category": "sorter"
     },
     "SorterNext": {
-      "count": 2,
+      "count": 3,
       "p4_variants": [],
       "example_query": "SELECT * FROM products ORDER BY price",
       "category": "sorter"
     },
     "SorterOpen": {
-      "count": 2,
+      "count": 3,
       "p4_variants": [
         "k(1,B)",
         "k(2,-B,B)"
@@ -436,7 +468,7 @@
       "category": "sorter"
     },
     "SorterSort": {
-      "count": 2,
+      "count": 3,
       "p4_variants": [],
       "example_query": "SELECT * FROM products ORDER BY price",
       "category": "sorter"
@@ -459,7 +491,7 @@
       "category": "arithmetic"
     },
     "Transaction": {
-      "count": 39,
+      "count": 40,
       "p4_variants": [
         "0"
       ],
