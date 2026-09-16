@@ -74,8 +74,8 @@ dependencies = [
 
 [[package]]
 name = "db-core"
-version = "0.90.0"
-source = "git+https://github.com/t-rust-db/db-core?tag=v0.90.0#eba356ee091152303981dd27d75b09071e5b5c7c"
+version = "0.101.0"
+source = "git+https://github.com/t-rust-db/db-core?tag=v0.101.0#d35c04108857707075831f7a9d7c66724668bd8c"
 
 [[package]]
 name = "digest"

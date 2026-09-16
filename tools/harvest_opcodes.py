@@ -114,6 +114,14 @@ QUERIES = [
     # in GROUP BY's five unrelated control-flow opcodes
     # (Compare/Gosub/If/Jump/Move).
     "SELECT count(*), sum(price) FROM products",
+    # GROUP BY (#56): harvested deliberately, despite bringing in the five
+    # control-flow opcodes the comment above once avoided. The scope call
+    # has changed -- we go for parity with the oracle, so the inventory
+    # records what sqlite3 actually emits and the *test* names the opcodes
+    # we have yet to implement (see KNOWN_UNIMPLEMENTED in
+    # tests/unit/vdbe_opcode_completeness_test.rs). db-core #396 added
+    # Gosub for exactly this shape; Compare/If/Jump/Move remain open.
+    "SELECT qty, count(*) FROM products GROUP BY qty",
 ]
 
 CLASSIFICATION = {
