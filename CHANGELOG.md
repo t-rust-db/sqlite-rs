@@ -4,6 +4,12 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 **Versioning policy:** one minor version per completed plan phase — the version number tells the plan's story, sub-steps stay inside a phase. V1 (READ CORE) = 0.1.0 through 0.4.0. *(History note: internal iterations briefly numbered 0.4.0–0.6.0 were renumbered into the phase scheme on 14 Aug 2026, before any tag or publication of those versions existed.)*
 
+## [0.25.2] - 2026-09-17
+
+### Added
+
+- **`.timer on|off` in the REPL** (db-cli v0.5.0): after each statement prints `Run Time: real 0.012 user 0.010 sys 0.001` on stderr, matching `sqlite3`'s `.timer`. Listed in `.help` and tab completion; `tests/unit/repl_dot_commands.rs::timer_reports_run_time_on_stderr_and_rejects_garbage` pins it.
+
 ## [0.25.1] - 2026-09-09
 
 ### Added

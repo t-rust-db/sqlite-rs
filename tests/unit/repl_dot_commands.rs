@@ -112,9 +112,31 @@ fn help_lists_every_dot_command() {
         ".mode",
         ".databases",
         ".indices",
+        ".timer",
     ] {
         assert!(out.contains(cmd), "missing {cmd:?} in .help output:\n{out}");
     }
+}
+
+#[test]
+fn timer_reports_run_time_on_stderr_and_rejects_garbage() {
+    let db = scratch_db("timer");
+    seed(&db, "CREATE TABLE t(a)");
+    let out = run_repl_script(
+        &db,
+        ".timer on\nSELECT 1;\n.timer off\nSELECT 2;\n.timer sideways\n.quit\n",
+    );
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stdout.contains("1\n2\n"), "{stdout}");
+    assert_eq!(
+        stderr.matches("Run Time: real ").count(),
+        1,
+        "exactly one timed statement expected:\n{stderr}"
+    );
+    assert!(stderr.contains(" user ") && stderr.contains(" sys "), "{stderr}");
+    assert!(stderr.contains("usage: .timer on|off"), "{stderr}");
 }
 
 #[test]

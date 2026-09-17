@@ -203,7 +203,9 @@ impl SqliteHandler {
 
 /// Which built-in dot-commands db-cli documents itself, so `help_extra`
 /// doesn't list them twice.
-const DB_CLI_BUILTINS: &[&str] = &[".help", ".quit", ".exit", ".mode", ".headers", ".color"];
+const DB_CLI_BUILTINS: &[&str] = &[
+    ".help", ".quit", ".exit", ".mode", ".headers", ".color", ".timer",
+];
 
 impl ReplHandler for SqliteHandler {
     type Output = ReplOutput;
