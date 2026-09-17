@@ -45,6 +45,7 @@ pub(crate) const HELP_ENTRIES: &[(&str, &str)] = &[
         "Show the CREATE statements (of TABLE, if given)",
     ),
     (".tables [PATTERN]", "List names of tables matching PATTERN"),
+    (".timer on|off", "Turn SQL timer on or off"),
     (".version", "Show sqlite-rs and SQLite version info"),
 ];
 

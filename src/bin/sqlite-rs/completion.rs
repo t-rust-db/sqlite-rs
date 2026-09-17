@@ -95,6 +95,7 @@ const DOT_COMMANDS: &[&str] = &[
     ".headers",
     ".mode",
     ".color",
+    ".timer",
     ".databases",
     ".indices",
     ".tables",

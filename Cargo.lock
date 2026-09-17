@@ -65,8 +65,8 @@ dependencies = [
 
 [[package]]
 name = "db-cli"
-version = "0.4.1"
-source = "git+https://github.com/t-rust-db/db-cli?tag=v0.4.1#b2052b7801144d46e48056184a389811fa8fefd3"
+version = "0.5.0"
+source = "git+https://github.com/t-rust-db/db-cli?tag=v0.5.0#e4013ac4c3837259bda79434f042f983bf200d7b"
 dependencies = [
  "dirs",
  "libc",
@@ -401,7 +401,7 @@ dependencies = [
 
 [[package]]
 name = "sqlite-rs"
-version = "0.25.1"
+version = "0.25.2"
 dependencies = [
  "db-cli",
  "db-core",
