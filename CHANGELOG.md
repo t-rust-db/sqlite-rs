@@ -4,6 +4,12 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 **Versioning policy:** one minor version per completed plan phase — the version number tells the plan's story, sub-steps stay inside a phase. V1 (READ CORE) = 0.1.0 through 0.4.0. *(History note: internal iterations briefly numbered 0.4.0–0.6.0 were renumbered into the phase scheme on 14 Aug 2026, before any tag or publication of those versions existed.)*
 
+## [0.25.3] - 2026-09-18
+
+### Changed
+
+- **db-core pinned to v0.111.0** (was v0.101.0 — ten minors behind; no path patch, so none of the intervening row-engine work had reached this crate or its benchmark). Picks up db-core#484 (implicit-group aggregates walk a range seek as a covering index) and db-core#487 (WAL commit path). `benchmark/perf/sqlite-rs` `make bench-quick` vs sqlite3 3.53.4: `agg_subquery` 50 MB **36.7x → 6.3x** (528 → 93 ms), 1 MB 12.5x → 6.9x; `insert_single_tx` WAL **5.2x → 2.2x**, `update_batch_tx` WAL 3.4x → 2.4x, `insert_batch_tx_1000` 3.1x → 1.9x; everything else within noise.
+
 ## [0.25.2] - 2026-09-17
 
 ### Added
