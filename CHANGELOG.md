@@ -4,6 +4,12 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 **Versioning policy:** one minor version per completed plan phase — the version number tells the plan's story, sub-steps stay inside a phase. V1 (READ CORE) = 0.1.0 through 0.4.0. *(History note: internal iterations briefly numbered 0.4.0–0.6.0 were renumbered into the phase scheme on 14 Aug 2026, before any tag or publication of those versions existed.)*
 
+## [0.25.4] - 2026-09-19
+
+### Changed
+
+- **db-core pinned to v0.114.0** (was v0.111.0): picks up db-core#498/#505 (`sqlite_stat4` range estimates decide seek vs scan), #486/#510 (parser column-ref clone), #503/#511 (`CHECK` failure names the constraint), #497 (`INSERT ... VALUES` temp-register fix). Bench numbers in `benchmark/perf/sqlite-rs`.
+
 ## [0.25.3] - 2026-09-18
 
 ### Changed
