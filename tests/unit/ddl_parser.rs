@@ -240,7 +240,7 @@ fn test_accept_create_table_check_column_constraint() {
     let t = accept_table("CREATE TABLE t (a INTEGER CHECK (a > 0))");
     assert!(matches!(
         &t.columns[0].constraints[0],
-        ColumnConstraint::Check(_)
+        ColumnConstraint::Check { .. }
     ));
 }
 
@@ -288,7 +288,7 @@ fn test_accept_create_table_unique_constraint_with_collate_desc() {
 #[test]
 fn test_accept_create_table_check_constraint() {
     let t = accept_table("CREATE TABLE t (a, CHECK (a > 0))");
-    assert!(matches!(t.constraints[0], TableConstraint::Check(_)));
+    assert!(matches!(t.constraints[0], TableConstraint::Check { .. }));
 }
 
 #[test]

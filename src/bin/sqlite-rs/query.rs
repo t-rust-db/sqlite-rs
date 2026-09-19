@@ -15,14 +15,15 @@ use std::rc::Rc;
 
 use sqlite_rs::btree::TableCursor;
 use sqlite_rs::codegen::{
-    compile_select_compound, compile_select_joined, compile_select_with_catalog,
-    compile_select_with_catalog_and_stats, expand_with_clause, explain_query_plan,
-    flatten_from_subqueries, push_down_where_predicates, resolve_from_table_schema, resolve_views,
-    CodegenError, EqpRow, ExpandViews,
+    compile_delete_with_catalog, compile_select_compound, compile_select_joined,
+    compile_select_with_catalog, compile_select_with_catalog_and_stats,
+    compile_update_with_catalog, expand_with_clause, explain_query_plan, flatten_from_subqueries,
+    push_down_where_predicates, resolve_from_table_schema, resolve_views, CodegenError, EqpRow,
+    ExpandViews,
 };
 use sqlite_rs::dump;
 use sqlite_rs::format::{write_csv_value, write_query_value};
-use sqlite_rs::parser::ast::Select;
+use sqlite_rs::parser::ast::{Delete, ExplainBody, Select, Update};
 use sqlite_rs::parser::{parse_explain, parse_select, ParseOutcome};
 use sqlite_rs::schema::{read_schema, read_views, TableSchema, ViewSchema};
 use sqlite_rs::vdbe::{execute_with_db, explain, Program};
@@ -207,7 +208,31 @@ pub fn run_query(raw_args: Vec<String>) -> ExitCode {
                 if !explain.query_plan {
                     explain_flag = true;
                 }
-                (*explain.select, explain.query_plan)
+                // sqlite-rs#63: db-core#524 widened `Explain`'s wrapped
+                // statement to `ExplainBody::{Select,Update,Delete}` so
+                // `EXPLAIN UPDATE`/`EXPLAIN DELETE` parse; the `Update`/
+                // `Delete` arms are handled by their own compile-and-
+                // print path (`run_explain_write`) since they don't fit
+                // this function's read-only `Select`/`compile_select_program`
+                // pipeline at all — never routed through `execute_with_db`,
+                // since `query` never writes.
+                match explain.body {
+                    ExplainBody::Select(select) => (*select, explain.query_plan),
+                    ExplainBody::Update(update) => {
+                        return run_explain_write(
+                            path,
+                            WriteStmt::Update(*update),
+                            explain.query_plan,
+                        );
+                    }
+                    ExplainBody::Delete(delete) => {
+                        return run_explain_write(
+                            path,
+                            WriteStmt::Delete(*delete),
+                            explain.query_plan,
+                        );
+                    }
+                }
             }
             ParseOutcome::Unsupported { message, span } => {
                 return fatal(
@@ -283,6 +308,76 @@ pub fn run_query(raw_args: Vec<String>) -> ExitCode {
     }
 }
 
+/// The opcode/bytecode listing `-explain` and bare `EXPLAIN` both print,
+/// factored out so [`run_explain_write`] (which never has rows to run,
+/// only bytecode to print) can share it with [`finish_query`].
+fn print_bytecode(program: &Program) {
+    for row in explain(program) {
+        println!(
+            "{}|{}|{}|{}|{}|{}|{}|{}",
+            row.addr, row.opcode, row.p1, row.p2, row.p3, row.p4, row.p5, row.comment
+        );
+    }
+}
+
+/// The write statement an `EXPLAIN` wraps, for [`run_explain_write`].
+enum WriteStmt {
+    Update(Update),
+    Delete(Delete),
+}
+
+/// `EXPLAIN UPDATE ...` / `EXPLAIN DELETE ...` (db-core#524 widened the
+/// parser; this CLI wiring is sqlite-rs#63): compiles `stmt` and prints
+/// its bytecode via the same rendering `-explain`/bare `EXPLAIN SELECT`
+/// use. Never executes it — `query` is a read-only surface (`exec` is
+/// the write path) — so unlike [`finish_query`] there is no "run it"
+/// fallback; `query_plan` (`EXPLAIN QUERY PLAN UPDATE/DELETE`) is
+/// rejected outright, since EQP is join-planner output over a
+/// `SELECT`'s FROM/JOIN shape and has no equivalent for a write
+/// statement, matching db-core's own `compile_statement` dispatch.
+fn run_explain_write(path: &Path, stmt: WriteStmt, query_plan: bool) -> ExitCode {
+    if query_plan {
+        return fatal(
+            path,
+            &"EXPLAIN QUERY PLAN over UPDATE/DELETE is not supported",
+        );
+    }
+
+    let (header, pager) = match dump::open(&UnixVfs, path) {
+        Ok(v) => v,
+        Err(e) => return fatal(path, &e),
+    };
+    let source: Rc<dyn PageSource> = Rc::new(pager);
+    let mut schema_cursor = TableCursor::new(Rc::clone(&source), &header, 1);
+    let schemas = match read_schema(&mut schema_cursor, header.text_encoding) {
+        Ok(s) => s,
+        Err(e) => return fatal(path, &e),
+    };
+
+    let find_schema = |name: &str| -> Result<&TableSchema, ExitCode> {
+        schemas
+            .iter()
+            .find(|s| s.name.eq_ignore_ascii_case(name))
+            .ok_or_else(|| fatal(path, &format!("no such table: {name}")))
+    };
+
+    let program = match &stmt {
+        WriteStmt::Update(update) => find_schema(&update.table).and_then(|schema| {
+            compile_update_with_catalog(update, schema, &schemas).map_err(|e| fatal(path, &e))
+        }),
+        WriteStmt::Delete(delete) => find_schema(&delete.table).and_then(|schema| {
+            compile_delete_with_catalog(delete, schema, &schemas).map_err(|e| fatal(path, &e))
+        }),
+    };
+    let program = match program {
+        Ok(p) => p,
+        Err(exit_code) => return exit_code,
+    };
+
+    print_bytecode(&program);
+    ExitCode::SUCCESS
+}
+
 /// `EXPLAIN`-render-or-execute-and-print tail shared by every `run_query`
 /// codegen path (single-table, joined, compound, and #260's FROM-less).
 fn finish_query(
@@ -294,12 +389,7 @@ fn finish_query(
     csv: bool,
 ) -> ExitCode {
     if explain_flag {
-        for row in explain(program) {
-            println!(
-                "{}|{}|{}|{}|{}|{}|{}|{}",
-                row.addr, row.opcode, row.p1, row.p2, row.p3, row.p4, row.p5, row.comment
-            );
-        }
+        print_bytecode(program);
         return ExitCode::SUCCESS;
     }
 

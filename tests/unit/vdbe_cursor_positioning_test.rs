@@ -107,51 +107,33 @@ fn null_row_forces_null_reads_until_repositioned() {
     assert_eq!(rows, vec![vec![Value::Null, Value::Null]]);
 }
 
-/// `IdxLE`: against an ephemeral cursor's `last_key` (the same probe
-/// state `Found`/`IdxInsert` maintain, per the opcode's own doc comment
-/// tying it to that shared mechanism rather than a real index cursor),
-/// reports whether the most recently inserted key is `<=` a freshly
-/// probed value, jumping to `P2` when it holds.
-fn idx_le_program(probe: &str, holds_jump_pc: i32) -> Program {
+/// `IdxLE` against an `OpenEphemeral` (DISTINCT-style in-memory index)
+/// cursor: db-core#527 (`perf/527-ephemeral-index-hash`) moved this
+/// cursor kind from a `BTreeMap` to a `HashMap`, and its doc comment on
+/// `EphemeralIndexCursor` explains why `Cursor::idx_compare` is now left
+/// un-overridden for it — no `IN (SELECT ...)`/`DISTINCT` shape ever
+/// emits `IdxLE` against this cursor kind (it always targets a real
+/// b-tree/in-memory index cursor instead), so trading the ordered-bound
+/// seek `IdxLE` would need for O(1) membership costs nothing real
+/// codegen reaches. `IdxLE` here now surfaces the same
+/// `MalformedInstruction` "not an index cursor" error as a genuinely
+/// malformed program, rather than comparing in the `HashMap`'s
+/// arbitrary iteration order.
+#[test]
+fn idx_le_reports_malformed_instruction_against_ephemeral_cursor() {
     use sqlite_rs::vdbe::P4;
 
-    Program::new(vec![
+    let program = Program::new(vec![
         /* 0 */ Instruction::new(Opcode::Init, 0, 1, 0),
         /* 1 */ Instruction::new(Opcode::OpenEphemeral, 0, 0, 0),
-        /* 2 */
-        Instruction::with_p4(Opcode::String8, 0, 0, 0, P4::Str("seed".to_string())),
-        /* 3 */
-        Instruction::with_p4(Opcode::IdxInsert, 0, 0, 0, P4::Int(1)), // last_key = encode(["seed"])
-        /* 4 */
-        Instruction::with_p4(Opcode::String8, 0, 0, 0, P4::Str(probe.to_string())),
-        /* 5 */
-        Instruction::with_p4(Opcode::IdxLE, 0, holds_jump_pc, 0, P4::Int(1)),
-        /* 6 */ Instruction::new(Opcode::Integer, 0, 0, 0), // r0 = 0 (not holds)
-        /* 7 */ Instruction::new(Opcode::Goto, 0, 9, 0),
-        /* 8 */ Instruction::new(Opcode::Integer, 1, 0, 0), // r0 = 1 (holds)
-        /* 9 */ Instruction::new(Opcode::ResultRow, 0, 1, 0),
-        /* 10 */ Instruction::new(Opcode::Halt, 0, 0, 0),
-    ])
-}
-
-#[test]
-fn idx_le_holds_when_last_inserted_key_is_at_most_probe() {
-    // last_key "seed" <= probe "zzzz": holds. Same length as "seed" so
-    // the encoded record's header (serial type varies with text length)
-    // matches and the comparison reduces to plain byte order, per
-    // IdxLE's own documented scope limitation (byte comparison of the
-    // encoded record, not a value comparison).
-    let program = idx_le_program("zzzz", 8);
-    let rows = sqlite_rs::vdbe::execute(&program).unwrap();
-    assert_eq!(rows, vec![vec![Value::Integer(1)]]);
-}
-
-#[test]
-fn idx_le_does_not_hold_when_last_inserted_key_exceeds_probe() {
-    // last_key "seed" <= probe "aaaa": does not hold.
-    let program = idx_le_program("aaaa", 8);
-    let rows = sqlite_rs::vdbe::execute(&program).unwrap();
-    assert_eq!(rows, vec![vec![Value::Integer(0)]]);
+        /* 2 */ Instruction::with_p4(Opcode::IdxLE, 0, 4, 0, P4::Int(0)),
+        /* 3 */ Instruction::new(Opcode::Halt, 0, 0, 0),
+    ]);
+    let err = sqlite_rs::vdbe::execute(&program).unwrap_err();
+    assert!(
+        err.to_string().contains("IdxLE"),
+        "expected an IdxLE malformed-instruction error, got: {err}"
+    );
 }
 
 /// A `CursorSlot::Ephemeral` (the DISTINCT-style in-memory index opened
