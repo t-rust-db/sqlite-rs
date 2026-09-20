@@ -135,7 +135,10 @@ fn timer_reports_run_time_on_stderr_and_rejects_garbage() {
         1,
         "exactly one timed statement expected:\n{stderr}"
     );
-    assert!(stderr.contains(" user ") && stderr.contains(" sys "), "{stderr}");
+    assert!(
+        stderr.contains(" user ") && stderr.contains(" sys "),
+        "{stderr}"
+    );
     assert!(stderr.contains("usage: .timer on|off"), "{stderr}");
 }
 

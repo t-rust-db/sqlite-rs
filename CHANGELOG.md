@@ -4,6 +4,16 @@ All notable changes to sqlite-rs. Format follows [Keep a Changelog](https://keep
 
 **Versioning policy:** one minor version per completed plan phase — the version number tells the plan's story, sub-steps stay inside a phase. V1 (READ CORE) = 0.1.0 through 0.4.0. *(History note: internal iterations briefly numbered 0.4.0–0.6.0 were renumbered into the phase scheme on 14 Aug 2026, before any tag or publication of those versions existed.)*
 
+## [0.25.5] - 2026-09-20
+
+### Added
+
+- **`EXPLAIN UPDATE ...`/`EXPLAIN DELETE ...` in `query`** (db-core#524, sqlite-rs#63): compiles the write statement and prints its bytecode via the same opcode-dump rendering `-explain`/bare `EXPLAIN SELECT` already use, never executing it. `EXPLAIN QUERY PLAN UPDATE/DELETE` is rejected (EQP is join-planner output over a `SELECT`'s FROM/JOIN shape).
+
+### Changed
+
+- **db-core pinned to v0.114.7** (was v0.114.0): picks up db-core#524 (the `ExplainBody` widening above), plus perf work since v0.114.0 (#508, #518, #520/#486, #525, #527).
+
 ## [0.25.4] - 2026-09-19
 
 ### Changed
