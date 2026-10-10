@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> **Moved to [t-rust-db/tools](https://github.com/t-rust-db/tools/tree/main/sqlite-rs).** This repository is archived.
+> sqlite-rs now lives in the `tools` Cargo workspace, with its full history; open issues were transferred there
+> (t-rust-db/tools#1). Install with `cargo install --git https://github.com/t-rust-db/tools sqlite-rs`.
+
 # sqlite-rs
 
 A safe binary compatible Rust replication of SQLite without any reliance on external libraries.
